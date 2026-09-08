@@ -1,0 +1,28 @@
+{
+  "name": "@cipher/sdd",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Portable spec-driven-development kit: the checker that gates permanent story/requirement identifiers against the tests that prove them, plus the workflow skills and templates a consuming repo vendors. Repo-agnostic by construction — every path, id grammar and house rule comes from sdd.config.yaml, never from this package.",
+  "bin": {
+    "sdd": "./src/main.ts"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.1"
+  },
+  "license": "UNLICENSED"
+}
