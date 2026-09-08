@@ -72,6 +72,11 @@ export const configSchema = z
     patchMaxRequirements: z.number().int().positive().default(3),
     /** The branch permanence compares against. A merge base, never the tip alone. */
     trunk: z.string().default("origin/main"),
+    /**
+     * Where the kit's skills are vendored. Filesystem discovery is why they must be copied at all,
+     * so this is the directory the agent actually reads.
+     */
+    skillsDir: z.string().default(".cursor/skills"),
     registers: z.array(registerSchema).default([]),
     /** id → written reason. Carried debt, and itself ratcheted: a key that suppresses nothing fails. */
     knownDebt: z.record(z.string(), z.string()).default({}),

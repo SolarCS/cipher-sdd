@@ -20,6 +20,18 @@ export {
   type SddConfig,
 } from "./config.js";
 export {
+  detectDrift,
+  DRIFT_REMEDY,
+  hash,
+  MANIFEST_NAME,
+  planInstall,
+  type Drift,
+  type DriftKind,
+  type Manifest,
+  type ManifestEntry,
+  type SourceSkill,
+} from "./install.js";
+export {
   formatId,
   idPattern,
   isId,

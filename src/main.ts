@@ -12,13 +12,24 @@ import { relative } from "node:path";
 import { check } from "./check.js";
 import { loadConfig, scopesOf } from "./config.js";
 import { listTrackedFiles, makeReader, makeRevisionReader, resolveRevisions } from "./io.js";
+import { detectDrift, DRIFT_REMEDY, planInstall } from "./install.js";
 import { collidingSince, droppedSince, idsByScope } from "./permanence.js";
 import { parseRegister, type RegisterConfig } from "./registers.js";
+import {
+  packageVersion,
+  readManifest,
+  readPackagedSkills,
+  readVendoredSkills,
+  writeSkills,
+} from "./skills-io.js";
 
-const USAGE = `Usage: sdd check [--json]
+const USAGE = `Usage: sdd <command>
 
-  check   Verify every register: identifiers well formed, live ones named by something
-          outside the registers, ratchets alive, and nothing dropped since the trunk.
+  check [--json]   Verify every register: identifiers well formed, live ones named by
+                   something outside the registers, ratchets alive, nothing dropped since
+                   the trunk, and no vendored skill hand-edited.
+  install          Vendor the kit's skills into this repo. Overwrites wholesale — a
+                   vendored skill is generated, never hand-edited; customise the config.
 `;
 
 function run(argv: readonly string[]): number {
@@ -27,13 +38,29 @@ function run(argv: readonly string[]): number {
     process.stdout.write(USAGE);
     return command === undefined ? 1 : 0;
   }
-  if (command !== "check") {
+  if (command !== "check" && command !== "install") {
     process.stderr.write(`sdd: unknown command "${command}"\n\n${USAGE}`);
     return 2;
   }
 
   const json = argv.includes("--json");
   const { config, root, configPath } = loadConfig();
+
+  if (command === "install") {
+    const skills = readPackagedSkills();
+    if (skills.length === 0) {
+      process.stderr.write("sdd: the package ships no skills to install\n");
+      return 2;
+    }
+    const { manifest } = planInstall(skills, config.skillsDir, packageVersion());
+    const written = writeSkills(root, config.skillsDir, skills, manifest);
+    process.stdout.write(
+      `installed ${skills.length} skill(s) at v${manifest.version}\n${written.map((w) => `  ${w}`).join("\n")}\n\n` +
+        "Commit these: a vendored skill in git is what makes the next upgrade a reviewable diff.\n",
+    );
+    return 0;
+  }
+
   scopesOf(config); // throws on a scope claimed twice, before anything is reported
 
   const readFile = makeReader(root);
@@ -43,6 +70,18 @@ function run(argv: readonly string[]): number {
   });
 
   const findings = [...report.findings];
+
+  // ---- vendored skills: generated, never hand-edited ---------------------------------------
+
+  const packaged = readPackagedSkills();
+  if (packaged.length > 0) {
+    const manifest = readManifest(root, config.skillsDir);
+    const { files } = planInstall(packaged, config.skillsDir, packageVersion());
+    const onDisk = readVendoredSkills(root, config.skillsDir);
+    for (const d of detectDrift(manifest, onDisk, files, config.skillsDir)) {
+      findings.push({ check: `skill-${d.kind}`, message: DRIFT_REMEDY[d.kind], detail: [d.path] });
+    }
+  }
 
   // ---- permanence, which needs git and is skipped honestly when it is unavailable ----------
 
