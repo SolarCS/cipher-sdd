@@ -63,7 +63,25 @@ export interface ParseResult {
   readonly malformed: string[];
   readonly problems: Problem[];
   readonly unknownFormat?: string;
+  /**
+   * The lifecycle status a table-format document declares, when it declares one.
+   *
+   * Part of the table FORMAT's contract, not of any one repo: a document still being drafted has
+   * not promised anything yet, so gating its identifiers would demand tests for behaviour nobody
+   * has agreed to build. The `sdd` format expresses the same idea structurally instead, with
+   * `## Proposed Requirements`.
+   */
+  readonly status?: DocumentStatus;
 }
+
+/** Where a table-format document sits in its lifecycle. */
+export type DocumentStatus = "Draft" | "Building" | "Shipped";
+
+/**
+ * Read from the FIRST match only. A document that quotes the contract — `> **Status:** Spec — Draft`
+ * inside an explanation of the format — must not have its own status read out of the quotation.
+ */
+const STATUS = /^>\s*\*\*Status:\*\*\s*Spec\s*[—-]\s*(Draft|Building|Shipped)/im;
 
 /**
  * Pull `| ID | Legacy | … |` rows out of a legacy register document.
@@ -110,7 +128,8 @@ export function parseTableRegister(
     });
   });
 
-  return { entries, malformed, problems: [] };
+  const status = STATUS.exec(source)?.[1] as DocumentStatus | undefined;
+  return { entries, malformed, problems: [], ...(status ? { status } : {}) };
 }
 
 /** `## <text>` and no deeper. */

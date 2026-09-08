@@ -80,6 +80,10 @@ export function check(config: SddConfig, deps: CheckDeps): CheckReport {
 
   const allEntries: DeclaredEntry[] = [];
   const registerFiles = new Set<string>();
+  /** Scope → the register file that owns it, so a document may talk about its own identifiers. */
+  const ownerOfScope = new Map(config.registers.map((r) => [r.scope, r.file]));
+  /** Registers still being drafted: declared, but promising nothing yet, so not gated. */
+  const draftScopes = new Set<string>();
   const declaredBy = new Map<string, string>(); // id → file that declares it
   const reserved = new Set(config.reservedScopes);
 
@@ -122,6 +126,8 @@ export function check(config: SddConfig, deps: CheckDeps): CheckReport {
     if (parsed.entries.length === 0) {
       add("empty-register", `a register parsed to zero entries`, [`${reg.scope} → ${reg.file}`]);
     }
+
+    if (parsed.status === "Draft") draftScopes.add(reg.scope);
 
     for (const entry of parsed.entries) {
       if (scopeOf(entry.id) !== reg.scope) {
@@ -173,6 +179,10 @@ export function check(config: SddConfig, deps: CheckDeps): CheckReport {
       });
       for (const match of text.matchAll(pattern)) {
         const id = match[0];
+        // A register naming its own scope is the document talking about itself — a forward
+        // reference in prose ("…add a guard for /users (new ZQA-17)"), a retired row, an example.
+        // It is neither a reference to resolve nor coverage to count.
+        if (ownerOfScope.get(scopeOf(id)) === file) continue;
         remember(referencedIn, id, file);
         // A register declaring its own id is not a reference to it, and a document whose whole job
         // is citing requirements must not cover them.
@@ -185,7 +195,7 @@ export function check(config: SddConfig, deps: CheckDeps): CheckReport {
 
   const knownDebt = new Map(Object.entries(config.knownDebt));
   const live = allEntries.filter((e) => !e.withdrawn && !e.proposed);
-  const gated = live.filter((e) => e.gated);
+  const gated = live.filter((e) => e.gated && !draftScopes.has(scopeOf(e.id)));
 
   const uncovered = gated.filter((e) => !coveredIn.has(e.id) && !knownDebt.has(e.id));
   if (uncovered.length > 0) {
