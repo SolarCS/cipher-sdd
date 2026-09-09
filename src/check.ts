@@ -245,7 +245,11 @@ export function check(config: SddConfig, deps: CheckDeps): CheckReport {
     const danglingLinks: string[] = [];
 
     for (const req of requirements) {
-      if (req.withdrawn) continue;
+      // Proposed entries are declared but not yet live: a change allocates its ids when it is
+      // proposed and writes the story links as the shape settles. Demanding the link before the
+      // work lands would make the middle state unusable, which is the state that exists so tests
+      // may name an id before it is gated.
+      if (req.withdrawn || req.proposed) continue;
       if (req.stories.length === 0) {
         orphanRequirements.push(`${req.id} (${req.file}:${req.lineNo}) ${req.title}`);
         continue;
@@ -266,7 +270,7 @@ export function check(config: SddConfig, deps: CheckDeps): CheckReport {
       add("dangling-story-link", `a requirement names a story that does not exist`, danglingLinks);
     }
     const emptyStories = stories
-      .filter((s) => !s.withdrawn && !servedStories.has(s.id))
+      .filter((s) => !s.withdrawn && !s.proposed && !servedStories.has(s.id))
       .map((s) => `${s.id} (${s.file}:${s.lineNo}) ${s.title}`);
     if (emptyStories.length > 0) {
       add(

@@ -10,6 +10,17 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+/**
+ * A NUL byte in the first 8 KB — the heuristic git itself uses to call a file binary.
+ *
+ * Skipping binaries is not a nicety. `git ls-files` lists a repository's images, and decoding a PNG
+ * as UTF-8 produces byte sequences that match short identifier patterns: the reference
+ * implementation's first run reported `F2` and `F3` "references" inside a brand mark. A phantom
+ * reference is worse than a missing one, because it SATISFIES coverage — a requirement would look
+ * proven by an image.
+ */
+const BINARY_SNIFF_BYTES = 8192;
+
 /** Read a repo-relative file, or null when it does not exist. */
 export function makeReader(root: string): (path: string) => string | null {
   const cache = new Map<string, string | null>();
@@ -18,7 +29,8 @@ export function makeReader(root: string): (path: string) => string | null {
     if (hit !== undefined) return hit;
     let text: string | null;
     try {
-      text = readFileSync(join(root, path), "utf8");
+      const buf = readFileSync(join(root, path));
+      text = buf.subarray(0, BINARY_SNIFF_BYTES).includes(0) ? null : buf.toString("utf8");
     } catch {
       text = null;
     }

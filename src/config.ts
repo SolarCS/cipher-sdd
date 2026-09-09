@@ -30,7 +30,13 @@ export const registerSchema = z
     format: z.enum(["table", "sdd"]).default("sdd"),
     /** Live entries must be named by something outside the registers. */
     gated: z.boolean().default(true),
-    /** Demand a WHEN and a THEN in every scenario of every live requirement. */
+    /**
+     * Demand at least one scenario, with a WHEN and a THEN, on every live entry.
+     *
+     * Stories as well as requirements: a user story carries acceptance scenarios in this format,
+     * so exempting them would leave the unit of user-visible value unproven while gating the rules
+     * beneath it.
+     */
     requireScenarios: z.boolean().default(false),
     /** Pattern for the pre-migration id scheme this register replaced. */
     legacy: z.string().optional(),

@@ -176,6 +176,36 @@ describe("stories and requirements account for each other", () => {
   });
 });
 
+describe("proposed entries are declared, not yet live", () => {
+  it("does not demand a story link from a proposed requirement", () => {
+    // The middle state exists so a change can allocate ids and write tests before the work lands.
+    // Demanding the finished shape there would make it unusable.
+    const source = spec(
+      "## User Stories",
+      story("ZQS-S1"),
+      "## Requirements",
+      requirement("ZQS-R1", "ZQS-S1"),
+      "## Proposed Requirements",
+      "### Requirement: ZQS-R2 — MUST do a thing nobody has linked yet",
+    );
+    const r = check(cfg(), deps({ [SPEC]: source, "t.test.ts": "ZQS-R1 ZQS-S1" }));
+    expect(names(r)).toEqual([]);
+  });
+
+  it("does not demand a requirement beneath a proposed story", () => {
+    const source = spec(
+      "## User Stories",
+      story("ZQS-S1"),
+      "## Proposed User Stories",
+      story("ZQS-S2", "a slice still being shaped"),
+      "## Requirements",
+      requirement("ZQS-R1", "ZQS-S1"),
+    );
+    const r = check(cfg(), deps({ [SPEC]: source, "t.test.ts": "ZQS-R1 ZQS-S1" }));
+    expect(names(r)).toEqual([]);
+  });
+});
+
 describe("structural faults", () => {
   it("fails a register that parsed to zero entries", () => {
     const r = check(cfg(), deps({ [SPEC]: "# Sources\n\nprose only" }));

@@ -29,7 +29,7 @@ export interface RegisterConfig {
   readonly format?: RegisterFormat | undefined;
   /** Whether every live entry must be named by something outside the registers. */
   readonly gated?: boolean | undefined;
-  /** Demand a WHEN and a THEN in every scenario of every live requirement. */
+  /** Demand at least one scenario, with a WHEN and a THEN, on every live entry — stories too. */
   readonly requireScenarios?: boolean | undefined;
   /** Pattern for the pre-migration id scheme this register replaced. */
   readonly legacy?: string | undefined;
