@@ -30,6 +30,24 @@ export interface Manifest {
 
 export const MANIFEST_NAME = ".sdd-manifest.json";
 
+/**
+ * Whether the kit may speak about a vendored path: it ships the skill today, or the name carries
+ * the kit's prefix so it plausibly shipped it yesterday. Everything else in the directory belongs
+ * to the consuming repo and is none of the kit's business.
+ */
+export function managedBy(
+  skillsDir: string,
+  shipped: readonly string[],
+  prefix: string,
+): (path: string) => boolean {
+  const shippedPaths = new Set(shipped.map((name) => `${skillsDir}/${name}/SKILL.md`));
+  return (path: string) => {
+    if (shippedPaths.has(path)) return true;
+    const rest = path.startsWith(`${skillsDir}/`) ? path.slice(skillsDir.length + 1) : "";
+    return rest.startsWith(prefix);
+  };
+}
+
 export function hash(content: string): string {
   return createHash("sha256").update(content, "utf8").digest("hex");
 }
@@ -69,14 +87,18 @@ export interface Drift {
  *   - `edited`    — the vendored file differs from what was installed. Move it to the config.
  *   - `missing`   — the manifest lists it and it is gone. Re-run install.
  *   - `stale`     — the package ships a newer version of it. Re-run install; read the diff.
- *   - `unmanaged` — a skill sits in the directory that no manifest claims. Usually a rename left
- *     behind, and it will keep competing for intent until it is removed.
+ *   - `unmanaged` — a skill the kit could have installed that no manifest claims. Usually a rename
+ *     left behind, and it will keep competing for intent until it is removed.
+ *
+ * `isManaged` decides which paths the kit may speak about at all. A consuming repo's skills live in
+ * the SAME directory as the vendored ones — that is the normal case, not an edge case — so claiming
+ * every file in the folder would report a repo's own long-standing skills as the kit's litter.
  */
 export function detectDrift(
   manifest: Manifest | null,
   onDisk: ReadonlyMap<string, string>,
   expected: readonly ManifestEntry[],
-  managedPrefix: string,
+  isManaged: (path: string) => boolean,
 ): Drift[] {
   const drift: Drift[] = [];
   if (manifest === null) {
@@ -105,7 +127,7 @@ export function detectDrift(
   }
 
   for (const path of onDisk.keys()) {
-    if (!path.startsWith(managedPrefix)) continue;
+    if (!isManaged(path)) continue;
     if (!installed.has(path) && !expectedByPath.has(path)) {
       drift.push({ kind: "unmanaged", path });
     }

@@ -8,6 +8,7 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 
 import { MANIFEST_NAME, type Manifest, type SourceSkill } from "./install.js";
 
@@ -73,12 +74,26 @@ export function readVendoredSkills(root: string, skillsDir: string): Map<string,
   return out;
 }
 
+/**
+ * The manifest is a durable record written by one version of the kit and read by another, so it is
+ * validated rather than cast.
+ *
+ * Checking only `Array.isArray(entries)` let a file with `entries: ["not an object"]` through, and
+ * the failure then surfaced far away — every vendored skill reported as hand-edited, which reads as
+ * the user's fault rather than the file's. A boundary that decides whether someone is accused of
+ * editing a generated file is worth validating properly.
+ */
+const manifestSchema = z
+  .object({
+    version: z.string(),
+    entries: z.array(z.object({ path: z.string(), sha256: z.string() }).strict()),
+  })
+  .strict();
+
 export function readManifest(root: string, skillsDir: string): Manifest | null {
   try {
     const raw: unknown = JSON.parse(readFileSync(join(root, skillsDir, MANIFEST_NAME), "utf8"));
-    const manifest = raw as Partial<Manifest>;
-    if (typeof manifest.version !== "string" || !Array.isArray(manifest.entries)) return null;
-    return { version: manifest.version, entries: manifest.entries };
+    return manifestSchema.safeParse(raw).data ?? null;
   } catch {
     return null;
   }

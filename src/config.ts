@@ -77,6 +77,11 @@ export const configSchema = z
      * so this is the directory the agent actually reads.
      */
     skillsDir: z.string().default(".cursor/skills"),
+    /**
+     * The prefix the kit's own skills carry. Used to recognise a vendored skill left behind by a
+     * rename, WITHOUT claiming the consuming repo's own skills in the same directory.
+     */
+    skillPrefix: z.string().default("sdd-"),
     registers: z.array(registerSchema).default([]),
     /** id → written reason. Carried debt, and itself ratcheted: a key that suppresses nothing fails. */
     knownDebt: z.record(z.string(), z.string()).default({}),

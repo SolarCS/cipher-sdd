@@ -88,6 +88,18 @@ describe("readManifest", () => {
     expect(readManifest(root, DIR)).toBeNull();
   });
 
+  it("returns null when an entry is not an entry, rather than half-reading the list", () => {
+    // `Array.isArray` alone accepted this, and the failure then surfaced far away: every vendored
+    // skill reported as hand-edited, which reads as the user's fault rather than the file's.
+    const root = scratch();
+    mkdirSync(join(root, DIR), { recursive: true });
+    writeFileSync(
+      join(root, DIR, MANIFEST_NAME),
+      JSON.stringify({ version: "1.0.0", entries: ["not an object"] }),
+    );
+    expect(readManifest(root, DIR)).toBeNull();
+  });
+
   it("returns null when the manifest is valid JSON but the wrong shape", () => {
     const root = scratch();
     mkdirSync(join(root, DIR), { recursive: true });

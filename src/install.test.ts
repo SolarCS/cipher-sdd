@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { detectDrift, hash, planInstall } from "./install.js";
+import { detectDrift, hash, managedBy, planInstall } from "./install.js";
 
 const SKILLS = [
   { name: "sdd-size", content: "---\nname: sdd-size\n---\ngate" },
@@ -8,6 +8,11 @@ const SKILLS = [
 ];
 const DIR = ".cursor/skills";
 const kinds = (d: ReturnType<typeof detectDrift>) => d.map((x) => `${x.kind}:${x.path}`);
+const managed = managedBy(
+  DIR,
+  SKILLS.map((s) => s.name),
+  "sdd-",
+);
 
 describe("planInstall", () => {
   it("maps each skill to its vendored path and records what it contained", () => {
@@ -26,16 +31,16 @@ describe("detectDrift", () => {
   const clean = new Map(SKILLS.map((s) => [`${DIR}/${s.name}/SKILL.md`, s.content]));
 
   it("is silent when disk, manifest and package all agree", () => {
-    expect(detectDrift(manifest, clean, files, DIR)).toEqual([]);
+    expect(detectDrift(manifest, clean, files, managed)).toEqual([]);
   });
 
   it("reports nothing when the kit was never installed, so the caller can say so instead", () => {
-    expect(detectDrift(null, clean, files, DIR)).toEqual([]);
+    expect(detectDrift(null, clean, files, managed)).toEqual([]);
   });
 
   it("catches a hand-edited vendored skill — the unupgradeable case", () => {
     const edited = new Map(clean).set(`${DIR}/sdd-size/SKILL.md`, "locally tweaked");
-    expect(kinds(detectDrift(manifest, edited, files, DIR))).toEqual([
+    expect(kinds(detectDrift(manifest, edited, files, managed))).toEqual([
       `edited:${DIR}/sdd-size/SKILL.md`,
     ]);
   });
@@ -43,7 +48,7 @@ describe("detectDrift", () => {
   it("catches a vendored skill that was deleted", () => {
     const gone = new Map(clean);
     gone.delete(`${DIR}/sdd-patch/SKILL.md`);
-    expect(kinds(detectDrift(manifest, gone, files, DIR))).toEqual([
+    expect(kinds(detectDrift(manifest, gone, files, managed))).toEqual([
       `missing:${DIR}/sdd-patch/SKILL.md`,
     ]);
   });
@@ -54,27 +59,34 @@ describe("detectDrift", () => {
       DIR,
       "1.1.0",
     );
-    expect(kinds(detectDrift(manifest, clean, newer.files, DIR))).toEqual([
+    expect(kinds(detectDrift(manifest, clean, newer.files, managed))).toEqual([
       `stale:${DIR}/sdd-patch/SKILL.md`,
     ]);
   });
 
   it("catches a skill the kit has added since this install", () => {
     const grown = planInstall([...SKILLS, { name: "sdd-archive", content: "new" }], DIR, "1.1.0");
-    expect(kinds(detectDrift(manifest, clean, grown.files, DIR))).toEqual([
+    expect(kinds(detectDrift(manifest, clean, grown.files, managed))).toEqual([
       `stale:${DIR}/sdd-archive/SKILL.md`,
     ]);
   });
 
   it("catches a leftover skill no manifest claims — a rename that kept competing for intent", () => {
     const leftover = new Map(clean).set(`${DIR}/sdd-sizing/SKILL.md`, "the old name");
-    expect(kinds(detectDrift(manifest, leftover, files, DIR))).toEqual([
+    expect(kinds(detectDrift(manifest, leftover, files, managed))).toEqual([
       `unmanaged:${DIR}/sdd-sizing/SKILL.md`,
     ]);
   });
 
   it("ignores files outside the managed directory", () => {
     const other = new Map(clean).set("docs/notes.md", "unrelated");
-    expect(detectDrift(manifest, other, files, DIR)).toEqual([]);
+    expect(detectDrift(manifest, other, files, managed)).toEqual([]);
+  });
+
+  it("leaves the consuming repo's OWN skills alone, sharing the same directory", () => {
+    // The normal case, not an edge case — and claiming them reported seven of this repo's
+    // long-standing skills as the kit's litter the first time the kit was installed here.
+    const shared = new Map(clean).set(`${DIR}/security-review/SKILL.md`, "the repo's own skill");
+    expect(detectDrift(manifest, shared, files, managed)).toEqual([]);
   });
 });

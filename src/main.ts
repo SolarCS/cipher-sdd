@@ -12,7 +12,7 @@ import { relative } from "node:path";
 import { check } from "./check.js";
 import { loadConfig, scopesOf } from "./config.js";
 import { listTrackedFiles, makeReader, makeRevisionReader, resolveRevisions } from "./io.js";
-import { detectDrift, DRIFT_REMEDY, planInstall } from "./install.js";
+import { detectDrift, DRIFT_REMEDY, managedBy, planInstall } from "./install.js";
 import { collidingSince, droppedSince, idsByScope } from "./permanence.js";
 import { parseRegister, type RegisterConfig } from "./registers.js";
 import {
@@ -78,7 +78,12 @@ function run(argv: readonly string[]): number {
     const manifest = readManifest(root, config.skillsDir);
     const { files } = planInstall(packaged, config.skillsDir, packageVersion());
     const onDisk = readVendoredSkills(root, config.skillsDir);
-    for (const d of detectDrift(manifest, onDisk, files, config.skillsDir)) {
+    const isManaged = managedBy(
+      config.skillsDir,
+      packaged.map((s) => s.name),
+      config.skillPrefix,
+    );
+    for (const d of detectDrift(manifest, onDisk, files, isManaged)) {
       findings.push({ check: `skill-${d.kind}`, message: DRIFT_REMEDY[d.kind], detail: [d.path] });
     }
   }
