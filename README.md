@@ -81,3 +81,25 @@ one, so each enumerates the phrasings that should match it. `grill-me` is a huma
 Vendored skills are **generated, never hand-edited**: `sdd check` fails on a modified copy, because
 a hand-edited vendored file is an unupgradeable one. Customisation goes in `sdd.config.yaml`; if the
 config cannot express it, that is a gap in the kit worth filing rather than a patch worth applying.
+
+## Configuration
+
+`sdd.config.yaml` is the only file a consumer edits. The keys that most often need setting:
+
+| Key | Default | What it decides |
+| --- | --- | --- |
+| `idGrammar` | `sdd` | `sdd` for `SCOPE-Kn`, `catalyst` for the plain `SCOPE-n` of a repo with an installed base |
+| `specRoot` / `changesRoot` | `specs` / `changes` | where living specs and in-flight changes live |
+| `searchRoots` | `[]` | path prefixes scanned for references to identifiers |
+| `coverageExcludeRoots` | `[]` | prefixes that contribute references but never coverage — a document that cites requirements to explain them |
+| `excludeFromScan` | `[]` | whole files whose example identifiers are documentation |
+| `registers` | `[]` | scope → document, its format, and whether it is gated |
+| `knownDebt` | `{}` | identifier → written reason; itself ratcheted, so a key suppressing nothing fails |
+| `patchMaxRequirements` | `3` | above this, a Tier 1 patch is not a patch |
+| `trunk` | `origin/main` | what permanence compares against, via a merge base |
+| `skillsDir` | `.cursor/skills` | where skills are vendored — the directory the agent actually reads |
+| `skillPrefix` | `sdd-` | which vendored names the kit may speak about, so a consumer's own skills in the same directory are never claimed as the kit's litter |
+
+`context`, `sizing` and `rules` are **prompt-level**: advice injected into a workflow when an agent
+runs it, never enforcement. A repo's real gate is its own test command, and a kit that pretends
+otherwise teaches people to trust a check that was never run.
