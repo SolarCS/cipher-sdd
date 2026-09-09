@@ -17,6 +17,8 @@ import { listTrackedFiles, makeReader, makeRevisionReader, resolveRevisions } fr
  */
 
 let repo: string;
+/** Every throwaway directory this file makes, so none is left behind in the temp dir. */
+const scratch: string[] = [];
 
 const run = (...args: string[]): void => {
   execFileSync("git", args, { cwd: repo, stdio: "ignore" });
@@ -45,6 +47,7 @@ beforeAll(() => {
 
 afterAll(() => {
   rmSync(repo, { recursive: true, force: true });
+  for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
 });
 
 describe("makeReader", () => {
@@ -81,7 +84,9 @@ describe("listTrackedFiles", () => {
   });
 
   it("returns an empty list outside a repository rather than throwing", () => {
-    expect(listTrackedFiles(mkdtempSync(join(tmpdir(), "sdd-nogit-")), ["."])).toEqual([]);
+    const notARepo = mkdtempSync(join(tmpdir(), "sdd-nogit-"));
+    scratch.push(notARepo);
+    expect(listTrackedFiles(notARepo, ["."])).toEqual([]);
   });
 });
 
