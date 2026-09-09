@@ -3,20 +3,20 @@ import { describe, expect, it } from "vitest";
 import { parseRegister, parseSpecRegister, parseTableRegister } from "./registers.js";
 import type { RegisterConfig } from "./registers.js";
 
-const SRC: RegisterConfig = { scope: "SRC", file: "specs/sources/spec.md", format: "sdd" };
-const spec = (body: string, reg: RegisterConfig = SRC) => parseSpecRegister(body, reg, "sdd");
+const ZQS: RegisterConfig = { scope: "ZQS", file: "specs/sources/spec.md", format: "sdd" };
+const spec = (body: string, reg: RegisterConfig = ZQS) => parseSpecRegister(body, reg, "sdd");
 const kinds = (r: ReturnType<typeof spec>) => r.problems.map((p) => p.kind);
 
 describe("the table format (legacy compat)", () => {
-  const WHK: RegisterConfig = { scope: "WHK", file: "docs/specs/x/spec.md" };
+  const ZQB: RegisterConfig = { scope: "ZQB", file: "legacy/x/spec.md" };
 
   it("reads rows and ignores everything that is not one", () => {
     const { entries } = parseTableRegister(
-      ["prose", "| WHK-1 | — | Building | MUST verify. |", "| not a row"].join("\n"),
-      WHK,
+      ["prose", "| ZQB-1 | — | Building | MUST verify. |", "| not a row"].join("\n"),
+      ZQB,
       "catalyst",
     );
-    expect(entries.map((e) => e.id)).toEqual(["WHK-1"]);
+    expect(entries.map((e) => e.id)).toEqual(["ZQB-1"]);
     expect(entries[0]?.kind).toBe("requirement");
   });
 
@@ -25,24 +25,24 @@ describe("the table format (legacy compat)", () => {
     // silently retired by a substring match.
     const { entries } = parseTableRegister(
       [
-        "| WHK-1 | — | Building | MUST refuse a grant that has been withdrawn. |",
-        "| WHK-2 | — | Withdrawn | Superseded by WHK-1. |",
+        "| ZQB-1 | — | Building | MUST refuse a grant that has been withdrawn. |",
+        "| ZQB-2 | — | Withdrawn | Superseded by ZQB-1. |",
       ].join("\n"),
-      WHK,
+      ZQB,
       "catalyst",
     );
-    expect(entries.find((e) => e.id === "WHK-1")?.withdrawn).toBe(false);
-    expect(entries.find((e) => e.id === "WHK-2")?.withdrawn).toBe(true);
+    expect(entries.find((e) => e.id === "ZQB-1")?.withdrawn).toBe(false);
+    expect(entries.find((e) => e.id === "ZQB-2")?.withdrawn).toBe(true);
   });
 
   it("reports a near-miss row rather than dropping it", () => {
     const { entries, malformed } = parseTableRegister(
-      "| WHK-1a | — | Building | broken |",
-      WHK,
+      "| ZQB-1a | — | Building | broken |",
+      ZQB,
       "catalyst",
     );
     expect(entries).toEqual([]);
-    expect(malformed).toEqual(["WHK-1a"]);
+    expect(malformed).toEqual(["ZQB-1a"]);
   });
 });
 
@@ -51,17 +51,17 @@ describe("the sdd format — sections decide state", () => {
     const r = spec(
       [
         "## User Stories",
-        "### User Story: SRC-S1 — Register a path pattern",
+        "### User Story: ZQS-S1 — Register a path pattern",
         "## Requirements",
-        "### Requirement: SRC-R1 — MUST accept a param segment",
-        "> Story: SRC-S1",
+        "### Requirement: ZQS-R1 — MUST accept a param segment",
+        "> Story: ZQS-S1",
       ].join("\n"),
     );
     expect(r.entries.map((e) => [e.id, e.kind])).toEqual([
-      ["SRC-S1", "story"],
-      ["SRC-R1", "requirement"],
+      ["ZQS-S1", "story"],
+      ["ZQS-R1", "requirement"],
     ]);
-    expect(r.entries[1]?.stories).toEqual(["SRC-S1"]);
+    expect(r.entries[1]?.stories).toEqual(["ZQS-S1"]);
     expect(r.problems).toEqual([]);
   });
 
@@ -69,35 +69,35 @@ describe("the sdd format — sections decide state", () => {
     const r = spec(
       [
         "## Proposed Requirements",
-        "### Requirement: SRC-R2 — MUST rank literal over param",
+        "### Requirement: ZQS-R2 — MUST rank literal over param",
         "## Retired Requirements",
-        "### Requirement: SRC-R3 — replaced by a whole-grant read",
+        "### Requirement: ZQS-R3 — replaced by a whole-grant read",
         "> Retired 2026-09-04 by `af8b0690`.",
       ].join("\n"),
     );
     const byId = new Map(r.entries.map((e) => [e.id, e]));
-    expect(byId.get("SRC-R2")?.proposed).toBe(true);
-    expect(byId.get("SRC-R2")?.withdrawn).toBe(false);
-    expect(byId.get("SRC-R3")?.withdrawn).toBe(true);
+    expect(byId.get("ZQS-R2")?.proposed).toBe(true);
+    expect(byId.get("ZQS-R2")?.withdrawn).toBe(false);
+    expect(byId.get("ZQS-R3")?.withdrawn).toBe(true);
     expect(r.problems).toEqual([]);
   });
 
   it("demands a dated record on a retired entry, so the reason is never lost", () => {
     const r = spec(
-      ["## Retired Requirements", "### Requirement: SRC-R3 — gone with no reason"].join("\n"),
+      ["## Retired Requirements", "### Requirement: ZQS-R3 — gone with no reason"].join("\n"),
     );
     expect(kinds(r)).toEqual(["retired-no-record"]);
   });
 
   it("flags a misspelt retired heading, which would otherwise gate every id beneath it", () => {
     const r = spec(
-      ["## Retired requirement", "### Requirement: SRC-R3 — filed under a typo"].join("\n"),
+      ["## Retired requirement", "### Requirement: ZQS-R3 — filed under a typo"].join("\n"),
     );
     expect(kinds(r)).toContain("retired-heading-spelling");
   });
 
   it("flags an entry outside any known section rather than counting it", () => {
-    const r = spec(["## Notes", "### Requirement: SRC-R9 — orphaned"].join("\n"));
+    const r = spec(["## Notes", "### Requirement: ZQS-R9 — orphaned"].join("\n"));
     expect(kinds(r)).toEqual(["orphan"]);
     expect(r.entries).toEqual([]);
   });
@@ -105,13 +105,13 @@ describe("the sdd format — sections decide state", () => {
 
 describe("the sdd format — kind must agree with its filing", () => {
   it("flags a requirement filed under User Stories", () => {
-    const r = spec(["## User Stories", "### Requirement: SRC-R1 — misfiled"].join("\n"));
+    const r = spec(["## User Stories", "### Requirement: ZQS-R1 — misfiled"].join("\n"));
     expect(kinds(r)).toEqual(["kind-section-mismatch"]);
     expect(r.entries).toEqual([]);
   });
 
   it("flags a heading whose keyword and id disagree about kind", () => {
-    const r = spec(["## User Stories", "### User Story: SRC-R4 — heading says story"].join("\n"));
+    const r = spec(["## User Stories", "### User Story: ZQS-R4 — heading says story"].join("\n"));
     expect(kinds(r)).toEqual(["kind-id-mismatch"]);
     expect(r.entries).toEqual([]);
   });
@@ -123,12 +123,12 @@ describe("the sdd format — text that only looks like a declaration", () => {
       [
         "## Requirements",
         "```markdown",
-        "### Requirement: SRC-R99 — an example in the docs",
+        "### Requirement: ZQS-R99 — an example in the docs",
         "```",
-        "### Requirement: SRC-R1 — the real one",
+        "### Requirement: ZQS-R1 — the real one",
       ].join("\n"),
     );
-    expect(r.entries.map((e) => e.id)).toEqual(["SRC-R1"]);
+    expect(r.entries.map((e) => e.id)).toEqual(["ZQS-R1"]);
   });
 
   it("closes a fence only on a run of the same character and at least the same length", () => {
@@ -137,12 +137,12 @@ describe("the sdd format — text that only looks like a declaration", () => {
         "## Requirements",
         "````",
         "```",
-        "### Requirement: SRC-R99 — still fenced",
+        "### Requirement: ZQS-R99 — still fenced",
         "````",
-        "### Requirement: SRC-R1 — after the real close",
+        "### Requirement: ZQS-R1 — after the real close",
       ].join("\n"),
     );
-    expect(r.entries.map((e) => e.id)).toEqual(["SRC-R1"]);
+    expect(r.entries.map((e) => e.id)).toEqual(["ZQS-R1"]);
   });
 
   it("ignores a requirement commented out, including across lines", () => {
@@ -150,19 +150,19 @@ describe("the sdd format — text that only looks like a declaration", () => {
       [
         "## Requirements",
         "<!--",
-        "### Requirement: SRC-R99 — the scaffold's worked example",
+        "### Requirement: ZQS-R99 — the scaffold's worked example",
         "-->",
-        "### Requirement: SRC-R1 — live",
+        "### Requirement: ZQS-R1 — live",
       ].join("\n"),
     );
-    expect(r.entries.map((e) => e.id)).toEqual(["SRC-R1"]);
+    expect(r.entries.map((e) => e.id)).toEqual(["ZQS-R1"]);
   });
 
   it("reports an unresolved question in the live section but tolerates it in proposed", () => {
     const live = spec(
       [
         "## Requirements",
-        "### Requirement: SRC-R1 — MUST accept [NEEDS CLARIFICATION: which encodings?]",
+        "### Requirement: ZQS-R1 — MUST accept [NEEDS CLARIFICATION: which encodings?]",
       ].join("\n"),
     );
     expect(kinds(live)).toEqual(["clarification"]);
@@ -170,7 +170,7 @@ describe("the sdd format — text that only looks like a declaration", () => {
     const proposed = spec(
       [
         "## Proposed Requirements",
-        "### Requirement: SRC-R1 — MUST accept [NEEDS CLARIFICATION: which encodings?]",
+        "### Requirement: ZQS-R1 — MUST accept [NEEDS CLARIFICATION: which encodings?]",
       ].join("\n"),
     );
     expect(kinds(proposed)).toEqual([]);
@@ -178,13 +178,13 @@ describe("the sdd format — text that only looks like a declaration", () => {
 });
 
 describe("the sdd format — scenarios", () => {
-  const strict: RegisterConfig = { ...SRC, requireScenarios: true };
+  const strict: RegisterConfig = { ...ZQS, requireScenarios: true };
 
   it("demands WHEN and THEN when the register asks for scenarios", () => {
     const r = parseSpecRegister(
       [
         "## Requirements",
-        "### Requirement: SRC-R1 — MUST match one segment",
+        "### Requirement: ZQS-R1 — MUST match one segment",
         "#### Scenario: a bare param",
         "- **GIVEN** a registered pattern",
         "- **WHEN** a request arrives",
@@ -199,9 +199,9 @@ describe("the sdd format — scenarios", () => {
     const r = parseSpecRegister(
       [
         "## Requirements",
-        "### Requirement: SRC-R1 — no scenario at all",
+        "### Requirement: ZQS-R1 — no scenario at all",
         "## Retired Requirements",
-        "### Requirement: SRC-R2 — retired, exempt",
+        "### Requirement: ZQS-R2 — retired, exempt",
         "> Retired 2026-09-04 by `abc1234`.",
       ].join("\n"),
       strict,
@@ -216,15 +216,15 @@ describe("story links", () => {
     const r = spec(
       [
         "## Requirements",
-        "### Requirement: SRC-R1 — serves two slices",
-        "> Story: SRC-S1, SRC-S2",
+        "### Requirement: ZQS-R1 — serves two slices",
+        "> Story: ZQS-S1, ZQS-S2",
       ].join("\n"),
     );
-    expect(r.entries[0]?.stories).toEqual(["SRC-S1", "SRC-S2"]);
+    expect(r.entries[0]?.stories).toEqual(["ZQS-S1", "ZQS-S2"]);
   });
 
   it("leaves stories empty when the line is absent, for the checker to judge", () => {
-    const r = spec(["## Requirements", "### Requirement: SRC-R1 — orphan behaviour"].join("\n"));
+    const r = spec(["## Requirements", "### Requirement: ZQS-R1 — orphan behaviour"].join("\n"));
     expect(r.entries[0]?.stories).toEqual([]);
   });
 });
@@ -232,18 +232,18 @@ describe("story links", () => {
 describe("format dispatch", () => {
   it("defaults to the table format", () => {
     const r = parseRegister(
-      "| WHK-1 | — | Building | x |",
-      { scope: "WHK", file: "f" },
+      "| ZQB-1 | — | Building | x |",
+      { scope: "ZQB", file: "f" },
       "catalyst",
     );
-    expect(r.entries.map((e) => e.id)).toEqual(["WHK-1"]);
+    expect(r.entries.map((e) => e.id)).toEqual(["ZQB-1"]);
   });
 
   it("reports an unknown format rather than falling back to a parser that finds nothing", () => {
     const r = parseRegister(
       "anything",
       {
-        scope: "WHK",
+        scope: "ZQB",
         file: "f",
         format: "openspec" as never,
       },
