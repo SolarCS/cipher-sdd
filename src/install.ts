@@ -63,7 +63,7 @@ export interface Drift {
 /**
  * Compare what is on disk against both the manifest and the package.
  *
- * Three distinct faults, because they need three different fixes and collapsing them into "drift"
+ * Four distinct faults, because they need four different fixes and collapsing them into "drift"
  * would leave the user guessing which:
  *
  *   - `edited`    — the vendored file differs from what was installed. Move it to the config.
