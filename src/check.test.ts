@@ -206,6 +206,70 @@ describe("proposed entries are declared, not yet live", () => {
   });
 });
 
+describe("the fixes dogfooding found against a real corpus", () => {
+  it("does not gate a spec still in Draft — it has promised nothing yet", () => {
+    // Demanding tests for a Draft spec demands tests for behaviour nobody has agreed to build.
+    // Found by running the kit over this repo: 40 identifiers were gated that should not have been.
+    const draft = [
+      "> **Status:** Spec — Draft",
+      "",
+      "| ZQB-1 | — | Draft | MUST do a thing nobody has committed to yet. |",
+    ].join("\n");
+    const r = check(
+      configSchema.parse({
+        idGrammar: "catalyst",
+        registers: [{ scope: "ZQB", file: SPEC, format: "table" }],
+      }),
+      deps({ [SPEC]: draft }),
+    );
+    expect(names(r)).toEqual([]);
+    expect(r.stats.gated).toBe(0);
+  });
+
+  it("gates the same spec once it leaves Draft", () => {
+    const building = [
+      "> **Status:** Spec — Building",
+      "",
+      "| ZQB-1 | — | Building | MUST do a thing now committed to. |",
+    ].join("\n");
+    const r = check(
+      configSchema.parse({
+        idGrammar: "catalyst",
+        registers: [{ scope: "ZQB", file: SPEC, format: "table" }],
+      }),
+      deps({ [SPEC]: building }),
+    );
+    expect(names(r)).toContain("uncovered");
+    expect(r.stats.gated).toBe(1);
+  });
+
+  it("lets a register talk about its own identifiers without that being a dangling reference", () => {
+    // A forward reference in prose — "…add a guard for that route (new ZQS-R9)" — is the document
+    // discussing itself, not a citation of something undeclared.
+    const source = spec(
+      "## User Stories",
+      story("ZQS-S1"),
+      "## Requirements",
+      requirement("ZQS-R1", "ZQS-S1"),
+      "",
+      "Prose in the same document mentioning a number not yet allocated: ZQS-R9.",
+    );
+    const r = check(cfg(), deps({ [SPEC]: source, "t.test.ts": "ZQS-R1 ZQS-S1" }));
+    expect(names(r)).toEqual([]);
+  });
+
+  it("still reports the same identifier as unknown when a DIFFERENT file names it", () => {
+    const source = spec(
+      "## User Stories",
+      story("ZQS-S1"),
+      "## Requirements",
+      requirement("ZQS-R1", "ZQS-S1"),
+    );
+    const r = check(cfg(), deps({ [SPEC]: source, "t.test.ts": "ZQS-R1 ZQS-S1 ZQS-R9" }));
+    expect(names(r)).toContain("unknown-id");
+  });
+});
+
 describe("structural faults", () => {
   it("fails a register that parsed to zero entries", () => {
     const r = check(cfg(), deps({ [SPEC]: "# Sources\n\nprose only" }));

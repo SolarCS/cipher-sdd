@@ -229,6 +229,38 @@ describe("story links", () => {
   });
 });
 
+describe("the table format's lifecycle status", () => {
+  const ZQB: RegisterConfig = { scope: "ZQB", file: "legacy/x/spec.md", format: "table" };
+  const read = (body: string) => parseTableRegister(body, ZQB, "catalyst").status;
+
+  it("reads Draft, Building and Shipped from the opening blockquote", () => {
+    for (const want of ["Draft", "Building", "Shipped"]) {
+      expect(read(`> **Status:** Spec — ${want}\n\n| ZQB-1 | — | x | y |`)).toBe(want);
+    }
+  });
+
+  it("reads the FIRST match only, so a document quoting the contract keeps its own status", () => {
+    // A document explaining the format quotes `> **Status:** Spec — Draft`. Reading the last match
+    // would give the explanation's status to the spec.
+    const body = [
+      "> **Status:** Spec — Shipped",
+      "",
+      "The contract requires an opening line reading:",
+      "",
+      "> **Status:** Spec — Draft",
+    ].join("\n");
+    expect(read(body)).toBe("Shipped");
+  });
+
+  it("reports no status when the document declares none", () => {
+    expect(read("| ZQB-1 | — | x | y |")).toBeUndefined();
+  });
+
+  it("tolerates a hyphen where the convention writes an em dash", () => {
+    expect(read("> **Status:** Spec - Building\n\n| ZQB-1 | — | x | y |")).toBe("Building");
+  });
+});
+
 describe("format dispatch", () => {
   it("defaults to the table format", () => {
     const r = parseRegister(
