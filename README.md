@@ -38,6 +38,9 @@ From then on, everything runs from the consumer's own copy, with zero access to 
 ./sdd.py check --json
 ```
 
+(If `coreDir` is set to something other than the default `"."` — see [Configuration](#configuration)
+— `sdd.py` lands there instead, e.g. `python3 .cursor/sdd/sdd.py check`.)
+
 Commit what `install` writes: a vendored file in git is what makes the next upgrade a reviewable
 diff, and `sdd check` fails on one that's been hand-edited since.
 
@@ -149,6 +152,8 @@ install` — each open with a Python-interpreter prerequisite step before anythi
 | `trunk` | `"origin/main"` | what permanence compares against, via a merge base |
 | `skillsDir` | `".cursor/skills"` | where skills are vendored — the directory the agent actually reads |
 | `skillPrefix` | `"sdd-"` | which vendored names the kit may speak about, so a consumer's own skills in the same directory are never claimed as the kit's litter |
+| `coreDir` | `"."` | where `sdd.py`/`_sdd_core.py` are vendored. Repo root by default; set to e.g. `".cursor/sdd"` for a consumer that wants nothing bare at its top level |
+| `templatesDir` | `"sdd-templates"` | where `templates/*.md` are vendored, independent of `coreDir` |
 
 `context`, `gate`, `sizing` and `rules` are **prompt-level**: advice injected into a workflow when an
 agent runs it, never enforcement. `gate` in particular is prose describing how *this* repo proves

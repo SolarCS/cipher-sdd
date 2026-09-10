@@ -39,6 +39,16 @@ class TestParseConfig:
         assert config.gate == ""
         assert config.context == ""
 
+    def test_core_dir_defaults_to_repo_root(self):
+        config = parse_config({})
+        assert config.coreDir == "."
+        assert config.templatesDir == "sdd-templates"
+
+    def test_core_dir_and_templates_dir_are_overridable(self):
+        config = parse_config({"coreDir": ".cursor/sdd", "templatesDir": ".cursor/sdd/templates"})
+        assert config.coreDir == ".cursor/sdd"
+        assert config.templatesDir == ".cursor/sdd/templates"
+
 
 class TestScopesOf:
     def test_lists_scopes_in_declaration_order(self):

@@ -120,6 +120,12 @@ class SddConfig:
     trunk: str = "origin/main"
     skillsDir: str = ".cursor/skills"
     skillPrefix: str = "sdd-"
+    # Where sdd.py/_sdd_core.py are vendored. "." (repo root) by default; a consumer that wants
+    # nothing at its top level can set this to e.g. ".cursor/sdd".
+    coreDir: str = "."
+    # Where templates/*.md are vendored, independent of coreDir -- a consumer nesting the core
+    # files under .cursor/sdd can still keep templates wherever it already keeps generated docs.
+    templatesDir: str = "sdd-templates"
     registers: tuple[RegisterEntryConfig, ...] = ()
     knownDebt: Mapping[str, str] = field(default_factory=dict)
     context: str = ""
@@ -154,6 +160,8 @@ _ALLOWED_CONFIG_KEYS = {
     "trunk",
     "skillsDir",
     "skillPrefix",
+    "coreDir",
+    "templatesDir",
     "registers",
     "knownDebt",
     "context",
@@ -243,6 +251,8 @@ def parse_config(raw: Mapping[str, object]) -> SddConfig:
         trunk=raw.get("trunk", "origin/main"),
         skillsDir=raw.get("skillsDir", ".cursor/skills"),
         skillPrefix=raw.get("skillPrefix", "sdd-"),
+        coreDir=raw.get("coreDir", "."),
+        templatesDir=raw.get("templatesDir", "sdd-templates"),
         registers=registers,
         knownDebt=dict(raw.get("knownDebt", {})),
         context=raw.get("context", ""),
@@ -1257,17 +1267,19 @@ def main(argv: Sequence[str]) -> int:
         this_dir = package_root()
         bootstrap = this_dir / "sdd.py"
         core = this_dir / "_sdd_core.py"
+        core_dest_dir = root / config.coreDir
         for src in (bootstrap, core):
             if src.is_file():
-                dest = root / src.name
+                dest = core_dest_dir / src.name
+                dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
                 if src.name == "sdd.py":
                     dest.chmod(0o755)
-                written.append(src.name)
+                written.append(str((Path(config.coreDir) / src.name).as_posix()))
 
         templates = read_packaged_templates()
         if templates:
-            written.extend(write_templates(root, "sdd-templates", templates))
+            written.extend(write_templates(root, config.templatesDir, templates))
 
         sys.stdout.write(
             f"installed {len(skills)} skill(s) at v{manifest.version}\n"
