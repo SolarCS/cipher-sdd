@@ -89,6 +89,8 @@ export const configSchema = z
     // ---- prompt-level below this line: injected as advice, never enforced ----
     /** Repo facts every workflow should read before planning. */
     context: z.string().default(""),
+    /** Prose describing how to prove the repo's own gate is green (e.g. "run exe/test"). */
+    gate: z.string().default(""),
     /** The sizing criteria that decide whether a change needs a spec at all. */
     sizing: z
       .object({ criteria: z.array(z.string()).default([]) })
