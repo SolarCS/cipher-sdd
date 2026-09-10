@@ -28,9 +28,14 @@ A story is proved by an **acceptance or integration** test — the one its `Inde
 describes. A requirement may be proved by any test. Use a `describe` when the whole block belongs to
 the id and an `it` when one case does.
 
-**4. Get the repo's own gate green before reporting the change complete.** Code written is not a task
-done. `sdd check` is not sufficient either: it proves an id is *named*, never that the naming test
-asserts anything.
+**4. Verify the work, not just the code.** Two checks, both required, in this order. Code written is
+not a task done.
+
+1. `sdd check` — proves every id you named resolves and nothing you touched broke coverage.
+   Necessary, not sufficient: it proves an id is *named*, never that the naming test asserts
+   anything.
+2. Read `sdd.config.yaml`'s `gate` field for how this repo proves itself, and run it. Get it green
+   before reporting the change complete.
 
 ## When the plan turns out to be wrong
 

@@ -10,9 +10,9 @@ written to *get* there is deleted.
 
 ## Order matters, and each stop is deliberate
 
-**1. Refuse if the work is not finished.** Unchecked verification task, or the repo's own gate not
-green → stop. Do not archive on a promise. Unchecked *other* tasks are a warning: report them, ask,
-and proceed only if the user confirms.
+**1. Refuse if the work is not finished.** The repo's own gate not green → stop outright, no
+override — that is the proof itself, not a task on a list. Any unchecked task in `tasks.md`, of any
+kind → warn, list them, and proceed only if the user confirms. Do not archive on a promise.
 
 **2. Sync the delta into the living spec** at `specRoot/<capability>/spec.md`. Merge intelligently —
 adding a scenario to an existing requirement means adding the scenario, not recopying the
