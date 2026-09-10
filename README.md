@@ -9,7 +9,7 @@ spec separate from the technical plan, and deletes the technical plan when the c
 
 Plain Python, not an npm package: the whole checker is two files, vendored straight into the
 consuming repo rather than resolved from a registry — no `node_modules`, no publish step, works the
-same whether `cipher-sdd` is public, private, or reachable at all after the first install.
+same whether `cipher-sdd` is reachable at all after the first install.
 
 | Part | Ships as | Why |
 | --- | --- | --- |
@@ -23,18 +23,13 @@ Bootstrapping (the one operation that genuinely needs access to this repo — se
 inside the consuming repo:
 
 ```bash
-sh -c 'd=$(mktemp -d) && git clone --depth 1 -q https://github.com/SolarCS/cipher-sdd "$d" && python3 "$d/sdd.py" install; rm -rf "$d"'
+curl -fsSL https://raw.githubusercontent.com/SolarCS/cipher-sdd/main/install.sh | bash
 ```
 
-`cipher-sdd` is a **private** repo, which is why this is `git clone`, not `curl`: anyone who can
-already reach it (the audience this one-liner is for) has that access through whatever credential
-already lets them clone any other private repo here — an SSH key, a cached HTTPS credential — with
-nothing extra to mint. `curl` to `raw.githubusercontent.com` doesn't get that for free; it would need
-a token handed to every installer, which defeats the point of a one-liner.
-
-[`install.sh`](install.sh) is the same three steps as a named, reviewable script instead of a
-one-liner to paste — run it directly if you already have a clone (`./install.sh`, from inside this
-repo, vendors here) or copy it somewhere and point it at one.
+[`install.sh`](install.sh) is a plain POSIX shell script: clone this repo into a temp dir, run
+`python3 sdd.py install` against wherever you are, clean up. Reviewable before you run it — open the
+raw URL above in a browser, or just read [`install.sh`](install.sh) here. Already have a clone
+instead? `./install.sh` run from inside it installs straight from that copy, no re-clone.
 
 From then on, everything runs from the consumer's own copy, with zero access to this repo:
 

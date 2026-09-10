@@ -1,20 +1,14 @@
 #!/bin/sh
-# One-line bootstrap for a repo that has never run sdd before.
+# One-line bootstrap for a repo that has never run sdd before:
 #
-#   sh -c "$(curl -fsSL https://raw.githubusercontent.com/SolarCS/cipher-sdd/main/install.sh)"
+#   curl -fsSL https://raw.githubusercontent.com/SolarCS/cipher-sdd/main/install.sh | bash
 #
-# ...would be the usual curl-pipe form, except cipher-sdd is a PRIVATE repo: raw.githubusercontent.com
-# needs a token to serve a private file, and asking every installer to mint one defeats the point of
-# a one-liner. `git clone` doesn't have that problem -- it uses whatever credential already lets this
-# machine reach the org's other private repos (an SSH key, a cached HTTPS credential), the same way
-# as any other clone here. So the one true one-liner is this file's own contents, run directly:
+# Already have a clone? Run this file directly instead -- `./install.sh` from inside it installs
+# straight from that copy, no re-clone, no network round trip.
 #
-#   sh -c 'd=$(mktemp -d) && git clone --depth 1 -q https://github.com/SolarCS/cipher-sdd "$d" && python3 "$d/sdd.py" install; rm -rf "$d"'
-#
-# This file exists for anyone who already has a clone and wants a named, reviewable script instead
-# of a one-liner to paste -- `./install.sh` from inside this repo, or `sh /path/to/cipher-sdd/install.sh`
-# pointed at a clone anywhere. It does the same three things: clone-or-reuse, run sdd.py install
-# against the CALLER's current directory, clean up.
+# Either way it does the same three things: get a copy of this repo (reuse one already on disk, or
+# a shallow `git clone` into a temp dir), run `python3 sdd.py install` against the CALLER's current
+# directory, clean up.
 #
 # POSIX sh only -- no bashisms, so it runs under dash/sh as well as bash/zsh.
 
