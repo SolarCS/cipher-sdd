@@ -13,7 +13,7 @@ makes it worth doing now.>
 
 ## Which sizing criteria this meets
 
-<!-- Name them from sdd.config.yaml's `sizing.criteria`. "None of them" is a valid answer — and it
+<!-- Name them from sdd.config.toml's `sizing.criteria`. "None of them" is a valid answer — and it
      means this change should not have a change directory at all. Say so and stop. -->
 
 ## Affected services

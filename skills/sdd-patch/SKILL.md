@@ -9,6 +9,12 @@ The tier that exists so a small change is neither over-processed nor invisible. 
 no `plan.md`, no `tasks.md` — the requirement lands in the living spec and the same pull request
 carries the test that names it.
 
+**Confirm the interpreter first.** `sdd check`/`sdd install` need Python 3.11+. Check
+`python3 --version`; if it's missing or older, propose the platform install command to the user
+(`brew install python@3.13` on macOS, `apt install python3.13` on Debian/Ubuntu,
+`winget install Python.Python.3.13` on Windows), get their confirmation, then run it yourself before
+continuing — the script cannot install its own interpreter.
+
 **Confirm the tier first.** This skill assumes `sdd-size` has ruled Tier 1. If it has not run, run
 it: a change that meets a sizing criterion, exceeds `patchMaxRequirements`, or needs a new **user
 story** is not a patch, and pretending otherwise is how the tier turns into a loophole.

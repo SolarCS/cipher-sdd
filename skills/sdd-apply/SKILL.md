@@ -8,6 +8,12 @@ description: Implement the tasks of a proposed change, keeping the tests tied to
 Turn `changes/<change-name>/tasks.md` into code. The planning artifacts are the instruction; this
 skill does not renegotiate them.
 
+**Confirm the interpreter first.** `sdd check`/`sdd install` need Python 3.11+. Check
+`python3 --version`; if it's missing or older, propose the platform install command to the user
+(`brew install python@3.13` on macOS, `apt install python3.13` on Debian/Ubuntu,
+`winget install Python.Python.3.13` on Windows), get their confirmation, then run it yourself before
+continuing — the script cannot install its own interpreter.
+
 ## Steps
 
 **1. Read the change.** `tasks.md` for the work, `spec.md` for what is being promised, `plan.md` for
@@ -34,7 +40,7 @@ not a task done.
 1. `sdd check` — proves every id you named resolves and nothing you touched broke coverage.
    Necessary, not sufficient: it proves an id is *named*, never that the naming test asserts
    anything.
-2. Read `sdd.config.yaml`'s `gate` field for how this repo proves itself, and run it. Get it green
+2. Read `sdd.config.toml`'s `gate` field for how this repo proves itself, and run it. Get it green
    before reporting the change complete.
 
 ## When the plan turns out to be wrong

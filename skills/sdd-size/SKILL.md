@@ -9,7 +9,7 @@ description: Decide whether a change needs a spec at all, and route it to the ri
 It is also the most common complaint about working this way, so the gate exists to answer *no*
 quickly and without ceremony.
 
-Read `sdd.config.yaml` for this repo's `sizing.criteria` and `context`. The criteria are the repo's,
+Read `sdd.config.toml` for this repo's `sizing.criteria` and `context`. The criteria are the repo's,
 not yours — never substitute a remembered list for the one the config declares.
 
 ## Ask, in order

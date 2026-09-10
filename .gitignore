@@ -1,3 +1,5 @@
-node_modules/
-coverage/
-dist/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.tgz
+.venv/

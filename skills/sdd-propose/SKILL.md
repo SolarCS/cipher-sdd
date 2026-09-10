@@ -13,7 +13,7 @@ original request asked for it. Wait for a new instruction, then `sdd-apply`.
 **Confirm the tier first.** If `sdd-size` has not ruled Tier 2, run it. Most changes need none of
 this.
 
-Read `sdd.config.yaml` first: `context` carries the repo's own facts and `rules` its per-artifact
+Read `sdd.config.toml` first: `context` carries the repo's own facts and `rules` its per-artifact
 house rules. Both are advice injected by the repo, not enforcement — but they are the repo's advice,
 so follow them unless they conflict with something the user has just decided.
 

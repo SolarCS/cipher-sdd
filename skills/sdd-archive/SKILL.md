@@ -8,6 +8,12 @@ description: Fold a finished change into the living capability spec and clear aw
 The step that makes a change permanent: its behaviour joins the living spec forever, and everything
 written to *get* there is deleted.
 
+**Confirm the interpreter first.** `sdd check`/`sdd install` need Python 3.11+. Check
+`python3 --version`; if it's missing or older, propose the platform install command to the user
+(`brew install python@3.13` on macOS, `apt install python3.13` on Debian/Ubuntu,
+`winget install Python.Python.3.13` on Windows), get their confirmation, then run it yourself before
+continuing — the script cannot install its own interpreter.
+
 ## Order matters, and each stop is deliberate
 
 **1. Refuse if the work is not finished.** The repo's own gate not green → stop outright, no

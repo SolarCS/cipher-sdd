@@ -21,7 +21,7 @@
 ## Constitution Check — before research
 
 <!--
-GATE 1. Check the approach against the repo's constitution (path in sdd.config.yaml). A violation
+GATE 1. Check the approach against the repo's constitution (path in sdd.config.toml). A violation
 means revising this plan, never reinterpreting the constitution. If a violation is genuinely
 justified, record it in Complexity Tracking below with the simpler alternative you rejected.
 -->
