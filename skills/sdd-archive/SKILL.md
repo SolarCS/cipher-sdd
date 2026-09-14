@@ -22,7 +22,11 @@ kind → warn, list them, and proceed only if the user confirms. Do not archive 
 
 **2. Sync the delta into the living spec** at `specRoot/<capability>/spec.md`. Merge intelligently —
 adding a scenario to an existing requirement means adding the scenario, not recopying the
-requirement. Apply the delta's own sections:
+requirement. **Never reformat.** Every requirement and scenario keeps the template's own shape —
+`#### Scenario:` heading, `- **GIVEN** / **WHEN** / **THEN**` bullets — carried over verbatim from
+the delta. Do not rewrite them into a table, prose, or any other layout, even if it reads more
+compactly; the checker parses that exact structure, and a reformat is a silent behaviour change to
+the spec itself. Apply the delta's own sections:
 
 | Delta section | What happens in the living spec |
 | --- | --- |
@@ -40,9 +44,10 @@ a promoted requirement that no test names now fails, and that is the point of pr
 
 **4. Verify the sync landed before moving anything.** Re-read the living spec and confirm every
 ADDED entry is present, every MODIFIED one carries its change with its other scenarios intact, and
-every REMOVED one is retired. **On any mismatch: stop. Move nothing.** The change directory is still
-intact, so the user can fix it and run the archive again — which is only true if you have not already
-deleted it.
+every REMOVED one is retired — **including that each scenario is still a `#### Scenario:` heading
+with GIVEN/WHEN/THEN bullets, not reshaped into a table or prose.** On any mismatch: stop. Move
+nothing. The change directory is still intact, so the user can fix it and run the archive again —
+which is only true if you have not already deleted it.
 
 **5. Promote the durable technical artifacts.** Move `contracts/` and `data-model.md` into
 `specRoot/<capability>/`. These describe current truth rather than a past decision, so they stay
