@@ -70,8 +70,8 @@ true if you have not already deleted it.
 `specRoot/<capability>/`. These describe current truth rather than a past decision, so they stay
 testable and stay honest.
 
-**6. Delete the rest.** `proposal.md`, `plan.md`, `research.md`, `tasks.md`, the delta `spec.md`, and
-then the change directory itself.
+**6. Delete the rest.** `intent.md`, `plan.md`, `tasks.md`, the delta `spec.md`, and then the change
+directory itself.
 
 This is the deliberate divergence from every other kit, so it is worth stating plainly to the user
 the first time: a `plan.md` describing how something was built in September is *wrong* by November,

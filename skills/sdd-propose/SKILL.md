@@ -21,10 +21,10 @@ so follow them unless they conflict with something the user has just decided.
 
 Create `changes/<change-name>/` (kebab-case, derived from the request), then:
 
-### 1. `proposal.md` — what and why
+### 1. `intent.md` — what, why, and (later) the decisions that got there
 
 Name **which** sizing criteria this meets, name the affected services **by path**, and state what
-this change is not doing.
+this change is not doing. Its `## Decisions` section stays empty for now — it fills in at step 5.
 
 ### 2. `spec.md` — the delta. Behaviour only
 
@@ -82,15 +82,16 @@ rest and record the assumption. Write each answer into the spec **body** *and* a
 `## Clarifications` session log. If a clarification invalidates an earlier sentence, replace that
 sentence — never leave the contradiction sitting beside its correction.
 
-### 5. `plan.md`, `research.md`, `data-model.md`, `contracts/`
+### 5. `plan.md`, `data-model.md`, `contracts/`
 
 `plan.md` carries the technical context (language, dependencies, storage, testing, platform) and the
 **constitution check — run it twice**: once before research, and again after the design is settled. A
 violation means revising the plan, never reinterpreting the constitution; a violation that is
 genuinely justified is recorded with its rejected alternative.
 
-`research.md` resolves every unknown as **Decision / Rationale / Alternatives rejected**. If
-`sdd-explore` ran, its settled decisions are the seed of this file.
+Research resolves every unknown as **Decision / Rationale / Alternatives rejected**, appended to
+`intent.md`'s `## Decisions` section. If `sdd-explore` ran, its settled decisions are the seed of
+that section.
 
 `contracts/` only when the change exposes an external interface — an API, a CLI surface, a wire
 format, a grammar. Skip it for purely internal work. Along with `data-model.md`, this is the one

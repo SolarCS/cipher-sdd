@@ -79,7 +79,7 @@ specs/<capability>/contracts/     LIVING · technical but durable — survives a
 specs/<capability>/data-model.md  LIVING · technical but durable — survives archive
 
 changes/<name>/spec.md            EPHEMERAL delta: ADDED / MODIFIED / REMOVED
-changes/<name>/{proposal,plan,research,tasks}.md   EPHEMERAL — deleted at archive
+changes/<name>/{intent,plan,tasks}.md              EPHEMERAL — deleted at archive
 ```
 
 A change's *behaviour* is merged into the living spec and kept forever. Its *plan* is deleted,
