@@ -43,7 +43,20 @@ default) or `"table"` — is what the checker parses. Look it up before writing 
   follow that and say so in the report.
 
 Once a register declares a format, every later sync into it keeps that format — a MODIFIED entry
-doesn't get to flip its own register's shape mid-flight. Apply the delta's own sections:
+doesn't get to flip its own register's shape mid-flight.
+
+**`sdd check` passing is not proof the format is enforced.** A repo can carry its own older or
+parallel id-checker — outside this kit, predating it, run by the repo's real `gate` command — that
+was written against `"table"` alone and never learned to read this config's `format` key at all. If
+one exists, it silently keeps parsing every register as a table regardless of what `format` says, so
+declaring or changing a register to `"sdd"` there does nothing but produce a spec `sdd check` likes
+and the repo's actual gate cannot see. Before trusting a register's `format` — new or already
+declared — find out what command `gate` in `sdd.config.toml` actually runs and confirm *that* parses
+the format you're about to write, not just `sdd check`. If it can't, `"table"` is the only format
+this register can safely declare until that checker is patched, however every other register here
+reads.
+
+Apply the delta's own sections:
 
 | Delta section | What happens in the living spec |
 | --- | --- |
@@ -79,7 +92,8 @@ and a wrong document that reads as current is worse than no document at all. Git
 with better provenance than an archive folder ever could. What survives is what stays true — the
 behaviour, and the interfaces.
 
-**7. Run `sdd check` and the repo's gate.** In that order.
+**7. Run `sdd check` and the repo's gate.** In that order, and both — `sdd check` passing never
+substitutes for the repo's own gate command, precisely because of the split above.
 
 ## Report
 
