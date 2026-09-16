@@ -61,7 +61,7 @@ Then hand off in two steps:
 
    | What the session produced | Where it belongs |
    | --- | --- |
-   | a settled decision, why, and what was rejected | seed entries for `research.md` |
+   | a settled decision, why, and what was rejected | seed entries for `intent.md`'s `## Decisions` section |
    | a question deliberately deferred | a `[NEEDS CLARIFICATION: …]` marker |
    | a term the discussion had to pin down | a `## Key Entities` entry |
 
