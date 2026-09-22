@@ -98,8 +98,6 @@ class RegisterEntryConfig:
     format: Literal["table", "sdd"] | None = None
     gated: bool = True
     requireScenarios: bool = False
-    legacy: str | None = None
-    legacyExclude: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -145,8 +143,6 @@ _ALLOWED_REGISTER_KEYS = {
     "format",
     "gated",
     "requireScenarios",
-    "legacy",
-    "legacyExclude",
 }
 _ALLOWED_CONFIG_KEYS = {
     "idGrammar",
@@ -190,8 +186,6 @@ def _parse_register(raw: Mapping[str, object]) -> RegisterEntryConfig:
         format=fmt,  # type: ignore[arg-type]
         gated=bool(raw.get("gated", True)),
         requireScenarios=bool(raw.get("requireScenarios", False)),
-        legacy=raw.get("legacy"),  # type: ignore[arg-type]
-        legacyExclude=tuple(raw.get("legacyExclude", ())),
     )
 
 
