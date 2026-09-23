@@ -45,6 +45,22 @@ class TestTableFormatLegacy:
         assert r.entries == ()
         assert list(r.malformed) == ["ZQB-1a"]
 
+    def test_flags_clarification_marker_in_the_title_column(self):
+        r = parse_table_register("| ZQB-1 | — | Building | MUST accept [NEEDS CLARIFICATION: which encoding?] |", self.ZQB, "catalyst")
+        assert kinds(r) == ["clarification"]
+
+    def test_flags_clarification_marker_in_a_middle_column(self):
+        r = parse_table_register(
+            "| ZQB-1 | [NEEDS CLARIFICATION: still true?] | Building | MUST verify. |", self.ZQB, "catalyst"
+        )
+        assert kinds(r) == ["clarification"]
+
+    def test_tolerates_clarification_marker_on_a_withdrawn_row(self):
+        r = parse_table_register(
+            "| ZQB-1 | — | Withdrawn | MUST accept [NEEDS CLARIFICATION: moot now]. |", self.ZQB, "catalyst"
+        )
+        assert kinds(r) == []
+
 
 class TestSddFormatSectionsDecideState:
     def test_reads_stories_and_requirements_out_of_one_document(self):

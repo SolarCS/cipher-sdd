@@ -98,6 +98,20 @@ class TestCoverage:
         )
         assert names(r) == []
 
+    def test_a_change_naming_an_unregistered_id_is_not_unknown(self):
+        r = check(
+            cfg(),
+            deps({SPEC: HEALTHY, "changes/add-thing/spec.md": "ZQS-R9 is proposed here", "t.test.ts": "ZQS-R1 ZQS-S1"}),
+        )
+        assert "unknown-id" not in names(r)
+
+    def test_a_change_naming_a_gated_id_does_not_grant_coverage(self):
+        r = check(
+            cfg(),
+            deps({SPEC: HEALTHY, "changes/add-thing/spec.md": "ZQS-R1 ZQS-S1", "t.test.ts": "irrelevant"}),
+        )
+        assert "uncovered" in names(r)
+
 
 class TestRatchetBothDirections:
     def test_accepts_carried_debt_with_reason(self):
@@ -148,6 +162,22 @@ class TestStoriesAndRequirementsAccountForEachOther:
         r = check(
             parse_config({"idGrammar": "catalyst", "registers": [{"scope": "ZQA", "file": SPEC, "format": "table"}]}),
             deps({SPEC: table, "t.test.ts": "ZQA-1"}),
+        )
+        assert names(r) == []
+
+    def test_does_not_demand_stories_from_an_ungated_register(self):
+        source = spec("## Requirements", "### Requirement: ZQS-R1 — a finding, not a capability")
+        r = check(
+            parse_config({"registers": [{"scope": "ZQS", "file": SPEC, "gated": False}]}),
+            deps({SPEC: source}),
+        )
+        assert names(r) == []
+
+    def test_does_not_demand_a_requirement_beneath_an_ungated_story(self):
+        source = spec("## User Stories", story("ZQS-S1"))
+        r = check(
+            parse_config({"registers": [{"scope": "ZQS", "file": SPEC, "gated": False}]}),
+            deps({SPEC: source}),
         )
         assert names(r) == []
 
@@ -228,6 +258,11 @@ class TestStructuralFaults:
         r = check(cfg({"reservedScopes": ["ZQS"]}), deps({SPEC: HEALTHY, "t.test.ts": "ZQS-R1 ZQS-S1"}))
         assert "reserved-scope" in names(r)
 
+    def test_reserved_scope_register_is_not_parsed_at_all(self):
+        broken = spec("## Retired Requirements", "### Requirement: ZQS-R3 — no dated record")
+        r = check(cfg({"reservedScopes": ["ZQS"]}), deps({SPEC: broken}))
+        assert names(r) == ["reserved-scope"]
+
     def test_surfaces_parser_problem_with_file_and_line(self):
         source = spec("## Retired Requirements", "### Requirement: ZQS-R3 — no dated record")
         r = check(cfg(), deps({SPEC: source}))
@@ -237,3 +272,56 @@ class TestStructuralFaults:
     def test_fails_reference_to_undeclared_identifier(self):
         r = check(cfg(), deps({SPEC: HEALTHY, "t.test.ts": "ZQS-R1 ZQS-S1 and a typo ZQS-R7"}))
         assert "unknown-id" in names(r)
+
+
+class TestSpecDirLayout:
+    def test_disabled_by_default(self):
+        r = check(cfg(), deps({SPEC: HEALTHY, "specs/orphan/README.md": "prose", "t.test.ts": "ZQS-R1 ZQS-S1"}))
+        assert not any(n.startswith("spec-dir") for n in names(r))
+
+    def test_flags_a_misnamed_directory(self):
+        r = check(
+            cfg({"specDirPattern": r"^\d{4}-\d{2}-\d{2}-[a-z-]+$"}),
+            deps({SPEC: HEALTHY, "t.test.ts": "ZQS-R1 ZQS-S1"}),
+        )
+        assert "spec-dir-name" in names(r)
+
+    def test_accepts_a_correctly_named_registered_directory(self):
+        path = "specs/2026-09-01-sources/spec.md"
+        r = check(
+            parse_config({"specDirPattern": r"^\d{4}-\d{2}-\d{2}-[a-z-]+$", "registers": [{"scope": "ZQS", "file": path}]}),
+            deps({path: HEALTHY, "t.test.ts": "ZQS-R1 ZQS-S1"}),
+        )
+        assert "spec-dir-name" not in names(r)
+        assert "spec-dir-no-spec" not in names(r)
+        assert "spec-dir-unregistered" not in names(r)
+
+    def test_flags_a_directory_with_no_spec_md(self):
+        r = check(
+            cfg({"specDirPattern": r"^[a-z-]+$"}),
+            deps({SPEC: HEALTHY, "specs/orphan/README.md": "prose", "t.test.ts": "ZQS-R1 ZQS-S1"}),
+        )
+        assert "spec-dir-no-spec" in names(r)
+        detail = next(f for f in r.findings if f.check == "spec-dir-no-spec").detail
+        assert "orphan" in detail
+
+    def test_flags_an_unregistered_spec_md(self):
+        r = check(
+            cfg({"specDirPattern": r"^[a-z-]+$"}),
+            deps({SPEC: HEALTHY, "specs/other/spec.md": "prose", "t.test.ts": "ZQS-R1 ZQS-S1"}),
+        )
+        assert "spec-dir-unregistered" in names(r)
+
+    def test_tolerates_sibling_artifacts_beside_spec_md(self):
+        r = check(
+            cfg({"specDirPattern": r"^[a-z-]+$"}),
+            deps(
+                {
+                    SPEC: HEALTHY,
+                    "specs/sources/contracts/api.yaml": "openapi",
+                    "specs/sources/data-model.md": "prose",
+                    "t.test.ts": "ZQS-R1 ZQS-S1",
+                }
+            ),
+        )
+        assert "spec-dir-no-spec" not in names(r)

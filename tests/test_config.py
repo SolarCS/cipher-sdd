@@ -49,6 +49,18 @@ class TestParseConfig:
         with pytest.raises(ConfigError):
             parse_config({"registerFormat": "openspec"})
 
+    def test_spec_dir_pattern_defaults_to_disabled(self):
+        config = parse_config({})
+        assert config.specDirPattern == ""
+
+    def test_spec_dir_pattern_is_settable(self):
+        config = parse_config({"specDirPattern": r"^\d{4}-\d{2}-\d{2}-[a-z-]+$"})
+        assert config.specDirPattern == r"^\d{4}-\d{2}-\d{2}-[a-z-]+$"
+
+    def test_rejects_an_invalid_spec_dir_pattern(self):
+        with pytest.raises(ConfigError):
+            parse_config({"specDirPattern": "[unclosed"})
+
     def test_gate_and_context_default_to_empty_prose(self):
         config = parse_config({})
         assert config.gate == ""

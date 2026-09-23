@@ -48,6 +48,12 @@ the entry omits it — is what the checker parses. Look it up before writing any
 Once a register declares a format, every later sync into it keeps that format — a MODIFIED entry
 doesn't get to flip its own register's shape mid-flight.
 
+**Naming a brand-new capability's directory.** When the register doesn't exist yet, its `spec.md`
+also needs a directory under `specRoot`. Check `sdd.config.toml`'s top-level `specDirPattern` first
+— if it's set, name the new directory to match it (`sdd check` enforces this and will fail the
+directory otherwise); if it's unset, there's no constraint, name the directory after the capability
+as usual.
+
 **`sdd check` passing is not proof the format is enforced.** A repo can carry its own older or
 parallel id-checker — outside this kit, predating it, run by the repo's real `gate` command — that
 was written against `"table"` alone and never learned to read this config's `format` key at all. If
