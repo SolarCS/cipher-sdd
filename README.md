@@ -143,6 +143,7 @@ install` — each open with a Python-interpreter prerequisite step before anythi
 | --- | --- | --- |
 | `idGrammar` | `"sdd"` | `sdd` for `SCOPE-Kn`, `catalyst` for the plain `SCOPE-n` of a repo with an installed base |
 | `specRoot` / `changesRoot` | `"specs"` / `"changes"` | where living specs and in-flight changes live |
+| `specDirPattern` | `""` (disabled) | a regex every immediate directory under `specRoot` must match; when set, also requires exactly one `spec.md` per directory and that it be a declared register |
 | `searchRoots` | `[]` | path prefixes scanned for references to identifiers |
 | `coverageExcludeRoots` | `[]` | prefixes that contribute references but never coverage — a document that cites requirements to explain them |
 | `excludeFromScan` | `[]` | whole files whose example identifiers are documentation |

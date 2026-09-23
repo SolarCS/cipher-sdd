@@ -109,6 +109,10 @@ class SizingConfig:
 class SddConfig:
     idGrammar: IdGrammar = "sdd"
     specRoot: str = "specs"
+    # Enforces a naming convention on every immediate directory under specRoot, plus that each one
+    # holds exactly one file named spec.md and that spec.md is a declared register. "" (default)
+    # disables the check entirely -- this kit's own capability-named directories never set it.
+    specDirPattern: str = ""
     changesRoot: str = "changes"
     searchRoots: tuple[str, ...] = ()
     coverageExcludeRoots: tuple[str, ...] = ()
@@ -151,6 +155,7 @@ _ALLOWED_REGISTER_KEYS = {
 _ALLOWED_CONFIG_KEYS = {
     "idGrammar",
     "specRoot",
+    "specDirPattern",
     "changesRoot",
     "searchRoots",
     "coverageExcludeRoots",
@@ -232,6 +237,15 @@ def parse_config(raw: Mapping[str, object]) -> SddConfig:
     if register_format not in ("table", "sdd"):
         raise ConfigError(f"registerFormat must be 'table' or 'sdd', got {register_format!r}")
 
+    spec_dir_pattern = raw.get("specDirPattern", "")
+    if not isinstance(spec_dir_pattern, str):
+        raise ConfigError(f"specDirPattern must be a string, got {spec_dir_pattern!r}")
+    if spec_dir_pattern != "":
+        try:
+            re.compile(spec_dir_pattern)
+        except re.error as e:
+            raise ConfigError(f"specDirPattern is not a valid regular expression: {e}") from e
+
     registers = tuple(_parse_register(r, register_format) for r in raw.get("registers", []))
 
     sizing_raw = raw.get("sizing", {})
@@ -245,6 +259,7 @@ def parse_config(raw: Mapping[str, object]) -> SddConfig:
     return SddConfig(
         idGrammar=id_grammar,  # type: ignore[arg-type]
         specRoot=raw.get("specRoot", "specs"),
+        specDirPattern=spec_dir_pattern,
         changesRoot=raw.get("changesRoot", "changes"),
         searchRoots=tuple(raw.get("searchRoots", ())),
         coverageExcludeRoots=tuple(raw.get("coverageExcludeRoots", ())),
@@ -356,6 +371,7 @@ _STATUS_RE = re.compile(r"^>\s*\*\*Status:\*\*\s*Spec\s*[—-]\s*(Draft|Building
 def parse_table_register(source: str, reg: RegisterEntryConfig, grammar: IdGrammar) -> ParseResult:
     entries: list[Entry] = []
     malformed: list[str] = []
+    problems: list[Problem] = []
     scope_near_miss = near_miss_pattern(reg.scope)
 
     for index, line in enumerate(source.split("\n")):
@@ -373,12 +389,15 @@ def parse_table_register(source: str, reg: RegisterEntryConfig, grammar: IdGramm
             if scope_near_miss.match(id_):
                 malformed.append(id_)
             continue
+        withdrawn = any(re.match(r"^withdrawn$", c, re.IGNORECASE) for c in cells[1:])
+        if not withdrawn and _CLARIFICATION.search(line):
+            problems.append(Problem(kind="clarification", lineNo=index + 1, text=trimmed[:90]))
         entries.append(
             Entry(
                 id=id_,
                 kind=kind_of(id_, grammar) or "requirement",
                 legacy=cells[1] if len(cells) > 1 else "",
-                withdrawn=any(re.match(r"^withdrawn$", c, re.IGNORECASE) for c in cells[1:]),
+                withdrawn=withdrawn,
                 proposed=False,
                 stories=(),
                 lineNo=index + 1,
@@ -388,7 +407,7 @@ def parse_table_register(source: str, reg: RegisterEntryConfig, grammar: IdGramm
 
     m = _STATUS_RE.search(source)
     status = m.group(1) if m else None  # type: ignore[assignment]
-    return ParseResult(entries=tuple(entries), malformed=tuple(malformed), problems=(), status=status)
+    return ParseResult(entries=tuple(entries), malformed=tuple(malformed), problems=tuple(problems), status=status)
 
 
 _H2 = re.compile(r"^##(?!#)\s+(.*?)\s*$")
@@ -837,6 +856,7 @@ def check(config: SddConfig, deps: CheckDeps) -> CheckReport:
     for reg in config.registers:
         if reg.scope in reserved:
             add("reserved-scope", f"scope {reg.scope} is reserved and cannot name a register", [reg.file])
+            continue
         source = deps.read_file(reg.file)
         if source is None:
             add("missing-register", "a register declares a file that does not exist", [f"{reg.scope} → {reg.file}"])
@@ -872,6 +892,43 @@ def check(config: SddConfig, deps: CheckDeps) -> CheckReport:
             declared_by[entry.id] = reg.file
             all_entries.append(DeclaredEntry(**{**entry.__dict__}, file=reg.file, gated=reg.gated))
 
+    if config.specDirPattern != "":
+        dir_pattern = re.compile(config.specDirPattern)
+        prefix = config.specRoot.rstrip("/") + "/"
+        spec_files_by_dir: dict[str, list[str]] = {}
+        for f in deps.list_files():
+            if not f.startswith(prefix):
+                continue
+            rest = f[len(prefix) :]
+            if "/" not in rest:
+                continue
+            dirname, remainder = rest.split("/", 1)
+            spec_files_by_dir.setdefault(dirname, [])
+            if remainder == "spec.md":
+                spec_files_by_dir[dirname].append(f)
+
+        bad_names: list[str] = []
+        no_spec: list[str] = []
+        unregistered: list[str] = []
+        for dirname, spec_files in spec_files_by_dir.items():
+            if not dir_pattern.match(dirname):
+                bad_names.append(dirname)
+            if len(spec_files) != 1:
+                no_spec.append(dirname)
+            elif spec_files[0] not in register_files:
+                unregistered.append(spec_files[0])
+
+        if len(bad_names) > 0:
+            add(
+                "spec-dir-name",
+                f"a directory under specRoot does not match specDirPattern {config.specDirPattern!r}",
+                sorted(bad_names),
+            )
+        if len(no_spec) > 0:
+            add("spec-dir-no-spec", "a directory under specRoot has zero or more than one file named spec.md", sorted(no_spec))
+        if len(unregistered) > 0:
+            add("spec-dir-unregistered", "a directory's spec.md is not declared by any register", sorted(unregistered))
+
     scopes = list(dict.fromkeys(r.scope for r in config.registers))
     pattern = reference_pattern(scopes, grammar)
     excluded = set(config.excludeFromScan)
@@ -887,6 +944,8 @@ def check(config: SddConfig, deps: CheckDeps) -> CheckReport:
         for f in deps.list_files():
             if f in excluded:
                 used_exclusions.add(f)
+                continue
+            if config.changesRoot != "" and f.startswith(config.changesRoot):
                 continue
             text = deps.read_file(f)
             if text is None:
@@ -953,7 +1012,7 @@ def check(config: SddConfig, deps: CheckDeps) -> CheckReport:
         dangling_links: list[str] = []
 
         for req in requirements:
-            if req.withdrawn or req.proposed:
+            if req.withdrawn or req.proposed or not req.gated:
                 continue
             if len(req.stories) == 0:
                 orphan_requirements.append(f"{req.id} ({req.file}:{req.lineNo}) {req.title}")
@@ -968,7 +1027,9 @@ def check(config: SddConfig, deps: CheckDeps) -> CheckReport:
         if len(dangling_links) > 0:
             add("dangling-story-link", "a requirement names a story that does not exist", dangling_links)
         empty_stories = [
-            f"{s.id} ({s.file}:{s.lineNo}) {s.title}" for s in stories if not s.withdrawn and not s.proposed and s.id not in served_stories
+            f"{s.id} ({s.file}:{s.lineNo}) {s.title}"
+            for s in stories
+            if not s.withdrawn and not s.proposed and s.gated and s.id not in served_stories
         ]
         if len(empty_stories) > 0:
             add("story-no-requirement", "a live user story has no requirement beneath it — a promise with no behaviour", empty_stories)
