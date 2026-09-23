@@ -125,6 +125,10 @@ class SddConfig:
     # files under .cursor/sdd can still keep templates wherever it already keeps generated docs.
     templatesDir: str = "sdd-templates"
     registers: tuple[RegisterEntryConfig, ...] = ()
+    # The format a register takes when its own [[registers]] entry omits `format`. A register
+    # that declares `format` explicitly always wins -- this only fills the gap, repo-wide, so a
+    # consumer doesn't have to repeat the same format on every entry.
+    registerFormat: Literal["table", "sdd"] = "sdd"
     knownDebt: Mapping[str, str] = field(default_factory=dict)
     context: str = ""
     gate: str = ""
@@ -159,6 +163,7 @@ _ALLOWED_CONFIG_KEYS = {
     "coreDir",
     "templatesDir",
     "registers",
+    "registerFormat",
     "knownDebt",
     "context",
     "gate",
@@ -167,7 +172,7 @@ _ALLOWED_CONFIG_KEYS = {
 }
 
 
-def _parse_register(raw: Mapping[str, object]) -> RegisterEntryConfig:
+def _parse_register(raw: Mapping[str, object], default_format: Literal["table", "sdd"] = "sdd") -> RegisterEntryConfig:
     unknown = set(raw.keys()) - _ALLOWED_REGISTER_KEYS
     if unknown:
         raise ConfigError(f"register has unrecognised key(s): {', '.join(sorted(unknown))}")
@@ -177,7 +182,7 @@ def _parse_register(raw: Mapping[str, object]) -> RegisterEntryConfig:
     file_ = raw.get("file")
     if not isinstance(file_, str) or file_ == "":
         raise ConfigError(f"register {scope} has no file")
-    fmt = raw.get("format", "sdd")
+    fmt = raw.get("format", default_format)
     if fmt not in ("table", "sdd"):
         raise ConfigError(f"register {scope} has an unrecognised format {fmt!r}")
     return RegisterEntryConfig(
@@ -223,7 +228,11 @@ def parse_config(raw: Mapping[str, object]) -> SddConfig:
     if not isinstance(patch_max, int) or isinstance(patch_max, bool) or patch_max <= 0:
         raise ConfigError("patchMaxRequirements must be a positive integer")
 
-    registers = tuple(_parse_register(r) for r in raw.get("registers", []))
+    register_format = raw.get("registerFormat", "sdd")
+    if register_format not in ("table", "sdd"):
+        raise ConfigError(f"registerFormat must be 'table' or 'sdd', got {register_format!r}")
+
+    registers = tuple(_parse_register(r, register_format) for r in raw.get("registers", []))
 
     sizing_raw = raw.get("sizing", {})
     if not isinstance(sizing_raw, dict) or (set(sizing_raw.keys()) - {"criteria"}):
@@ -248,6 +257,7 @@ def parse_config(raw: Mapping[str, object]) -> SddConfig:
         coreDir=raw.get("coreDir", "."),
         templatesDir=raw.get("templatesDir", "sdd-templates"),
         registers=registers,
+        registerFormat=register_format,  # type: ignore[arg-type]
         knownDebt=dict(raw.get("knownDebt", {})),
         context=raw.get("context", ""),
         gate=raw.get("gate", ""),

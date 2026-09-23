@@ -147,6 +147,7 @@ install` — each open with a Python-interpreter prerequisite step before anythi
 | `coverageExcludeRoots` | `[]` | prefixes that contribute references but never coverage — a document that cites requirements to explain them |
 | `excludeFromScan` | `[]` | whole files whose example identifiers are documentation |
 | `registers` | `[]` | scope → document, its format, and whether it is gated (`[[registers]]` array-of-tables) |
+| `registerFormat` | `"sdd"` | the format a register takes when its own `[[registers]]` entry omits `format` — repo-wide default; an entry that declares `format` itself always wins |
 | `knownDebt` | `{}` | identifier → written reason; itself ratcheted, so a key suppressing nothing fails |
 | `patchMaxRequirements` | `3` | above this, a Tier 1 patch is not a patch |
 | `trunk` | `"origin/main"` | what permanence compares against, via a merge base |

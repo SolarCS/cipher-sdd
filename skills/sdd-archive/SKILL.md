@@ -25,22 +25,25 @@ adding a scenario to an existing requirement means adding the scenario, not reco
 requirement.
 
 **The register's declared `format` decides the shape, not the delta's.** Every requirement lives
-under a `[[registers]]` entry in `sdd.config.toml`, and that entry's `format` — `"sdd"` (the
-default) or `"table"` — is what the checker parses. Look it up before writing anything:
+under a `[[registers]]` entry in `sdd.config.toml`, and that entry's `format` — `"sdd"` or
+`"table"`, falling back to the repo's top-level `registerFormat` (itself `"sdd"` by default) when
+the entry omits it — is what the checker parses. Look it up before writing anything:
 
-- **`format = "sdd"` (or unset):** carry the delta's own shape over verbatim — `#### Scenario:`
+- **Resolves to `"sdd"`:** carry the delta's own shape over verbatim — `#### Scenario:`
   heading, `- **GIVEN** / **WHEN** / **THEN**` bullets, unchanged. Do not rewrite these into a
   table or prose, even if it reads more compactly; that would be reformatting into a shape this
   register never declared.
-- **`format = "table"`:** fold the delta's requirement into a new row matching the sibling rows'
+- **Resolves to `"table"`:** fold the delta's requirement into a new row matching the sibling rows'
   own columns exactly — same columns, same conventions this register already uses. The delta's
   GIVEN/WHEN/THEN stays in the delta (deleted at step 6); it was never the living spec's format for
   this register.
 - **Register does not exist yet in `sdd.config.toml`** (this delta's `ADDED` section seeds a scope
   no register names): this is a real decision, not a default to infer by copying whatever a
-  neighboring register happens to use. Ask the user which format this new register should declare,
-  unless the repo's own `context`/`rules` in `sdd.config.toml` already states a convention — then
-  follow that and say so in the report.
+  neighboring register happens to use. Check `sdd.config.toml`'s top-level `registerFormat` first —
+  if it is set, the new register's `format` follows it, no need to ask, just say so in the report.
+  Only if `registerFormat` is unset: follow a convention already stated in the repo's own
+  `context`/`rules`, and say so. Only if neither exists: ask the user which format this new register
+  should declare.
 
 Once a register declares a format, every later sync into it keeps that format — a MODIFIED entry
 doesn't get to flip its own register's shape mid-flight.
