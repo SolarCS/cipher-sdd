@@ -34,6 +34,21 @@ class TestParseConfig:
         config = parse_config({"registers": [{"scope": "ZQS", "file": "f.md"}]})
         assert config.registers[0].format == "sdd"
 
+    def test_register_format_falls_back_to_the_global_default(self):
+        config = parse_config({"registerFormat": "table", "registers": [{"scope": "ZQS", "file": "f.md"}]})
+        assert config.registerFormat == "table"
+        assert config.registers[0].format == "table"
+
+    def test_register_format_still_overrides_the_global_default(self):
+        config = parse_config(
+            {"registerFormat": "table", "registers": [{"scope": "ZQS", "file": "f.md", "format": "sdd"}]}
+        )
+        assert config.registers[0].format == "sdd"
+
+    def test_rejects_an_unrecognised_register_format(self):
+        with pytest.raises(ConfigError):
+            parse_config({"registerFormat": "openspec"})
+
     def test_gate_and_context_default_to_empty_prose(self):
         config = parse_config({})
         assert config.gate == ""
