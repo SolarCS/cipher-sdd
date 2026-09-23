@@ -388,6 +388,7 @@ _SCENARIO = re.compile(r"^####(?!#)\s+Scenario:\s*(.*?)\s*$")
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
 _RETIRED_RECORD = re.compile(r"^>\s*Retired\s+\d{4}-\d{2}-\d{2}\s+by\s+\S.*$")
 _STORY_LINK = re.compile(r"^>\s*Story:\s*(.+)$")
+_TABLE_ROW = re.compile(r"^\s*\|.*\|\s*$")
 _WHEN = re.compile(r"^\s*[-*]\s*\*\*WHEN\*\*")
 _THEN = re.compile(r"^\s*[-*]\s*\*\*THEN\*\*")
 _CLARIFICATION = re.compile(r"\[NEEDS CLARIFICATION:")
@@ -495,6 +496,11 @@ def parse_spec_register(source: str, reg: RegisterEntryConfig, grammar: IdGramma
             section_kind = section[1] if section else "requirement"
             if section is None and "retired" in name:
                 flag("retired-heading-spelling", line_no, h2.group(1).strip())
+            i += 1
+            continue
+
+        if state in ("active", "proposed", "retired") and _TABLE_ROW.match(line):
+            flag("table-row-in-spec-format", line_no, line.strip())
             i += 1
             continue
 
@@ -790,6 +796,7 @@ _PROBLEM_MESSAGES: dict[str, str] = {
     "no-scenario": "a live requirement has no scenario, and this register requires one",
     "scenario-no-when": "a scenario has no **WHEN** step",
     "scenario-no-then": "a scenario has no **THEN** step",
+    "table-row-in-spec-format": "a table row sits in a register whose format is sdd -- this format is headings and scenarios, not a table, so the row parses as nothing and its identifier vanishes silently",
 }
 
 
