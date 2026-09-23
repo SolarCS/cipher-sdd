@@ -107,6 +107,34 @@ class TestSddFormatKindMustAgree:
         assert r.entries == ()
 
 
+class TestSddFormatCatchesTableDrift:
+    def test_flags_table_row_where_a_requirement_heading_belongs(self):
+        r = spec("\n".join(["## Requirements", "| ZQS-R1 | — | Building | MUST accept a param segment. |"]))
+        assert kinds(r) == ["table-row-in-spec-format"]
+        assert r.entries == ()
+
+    def test_flags_table_row_alongside_a_real_requirement(self):
+        r = spec(
+            "\n".join(
+                [
+                    "## Requirements",
+                    "### Requirement: ZQS-R1 — the real one",
+                    "| ZQS-R2 | — | Building | reformatted into a row instead of a heading. |",
+                ]
+            )
+        )
+        assert kinds(r) == ["table-row-in-spec-format"]
+        assert [e.id for e in r.entries] == ["ZQS-R1"]
+
+    def test_flags_table_separator_row_too(self):
+        r = spec("\n".join(["## Proposed Requirements", "| --- | --- | --- | --- |"]))
+        assert kinds(r) == ["table-row-in-spec-format"]
+
+    def test_does_not_flag_a_table_under_an_unrecognised_section(self):
+        r = spec("\n".join(["## Notes", "| some | prose | table | unrelated to requirements |"]))
+        assert kinds(r) == []
+
+
 class TestSddFormatLooksLikeADeclaration:
     def test_ignores_requirement_inside_fenced_block(self):
         r = spec(
