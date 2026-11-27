@@ -65,6 +65,13 @@ the format you're about to write, not just `sdd check`. If it can't, `"table"` i
 this register can safely declare until that checker is patched, however every other register here
 reads.
 
+**Confirm every ADDED number is still free before writing it.** The change allocated its numbers
+when it was proposed; another change or a patch may have registered one of them since. If the
+register already holds an ADDED id for something else, stop: take a new number from
+`sdd next <SCOPE>` and renumber the delta, tasks, plan and every test naming the old one before
+syncing — never sync over the existing entry. `sdd check` fails the branch that causes this
+(`planned-id-collision`), but a collision that landed before it could see one is yours to catch here.
+
 Apply the delta's own sections:
 
 | Delta section | What happens in the living spec |

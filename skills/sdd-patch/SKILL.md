@@ -24,10 +24,14 @@ story** is not a patch, and pretending otherwise is how the tier turns into a lo
 **1. Open the capability's `spec.md`** under `specRoot`. Read `## Requirements` *and*
 `## Retired Requirements`.
 
-**2. Allocate by reading, never by counting.** The next number is one past the highest that scope has
-ever issued — a retired entry still holds its number. Counting the live headings hands out a number
-that is already taken, and reusing a number silently redirects every existing reference to it. Run
-`sdd check` if you want the allocation confirmed rather than assumed.
+**2. Allocate with `sdd next <SCOPE>`, never by counting.** The next number is one past the highest
+that scope has ever issued — a retired entry still holds its number — *and* past every number an open
+change under `changesRoot` already plans in its `spec.md`, `tasks.md` or `plan.md`. A planned number
+is taken even though no register shows it yet: register it here and whichever of the two lands second
+has to renumber its tests, tasks and plan. Counting the live headings hands out a number that is
+already taken, and reusing a number silently redirects every existing reference to it. `sdd next`
+reads both the register and the open changes, and says when a plan is what pushed the number up;
+`sdd check` then fails a register row that takes a number an open change plans.
 
 **3. Write the change.**
 

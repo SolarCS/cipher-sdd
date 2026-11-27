@@ -19,9 +19,10 @@
 
 ## ADDED Requirements
 
-<!-- Allocate by READING the living spec, never by counting its headings: a retired entry still
-     holds its number. These land under `## Proposed Requirements` at sync, and are gated only once
-     promoted at archive — which is what lets tests name them before the work lands. -->
+<!-- Allocate with `sdd next <SCOPE>`, never by counting the living spec's headings: a retired
+     entry still holds its number, and so does every number another open change already plans.
+     These land under `## Proposed Requirements` at sync, and are gated only once promoted at
+     archive — which is what lets tests name them before the work lands. -->
 
 ### Requirement: <SCOPE>-R<n> — <subject> MUST <observable behaviour>
 

@@ -690,6 +690,43 @@ def list_tracked_files(root: Path, search_roots: Sequence[str]) -> list[str]:
     return [p for p in out.split("\0") if p != ""]
 
 
+def list_change_files(root: Path, changes_root: str) -> list[str]:
+    """Files under changesRoot, tracked or not yet added -- a plan an agent wrote a minute ago
+    holds its numbers as much as one already committed."""
+    if changes_root.strip("/") == "":
+        return []
+    out = _git(root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", changes_root])
+    if out is None:
+        return []
+    return sorted({p for p in out.split("\0") if p != ""})
+
+
+def list_files_at(root: Path, rev: str, prefix: str) -> list[str]:
+    if prefix.strip("/") == "":
+        return []
+    out = _git(root, ["ls-tree", "-r", "-z", "--name-only", rev, "--", prefix])
+    if out is None:
+        return []
+    return [p for p in out.split("\0") if p != ""]
+
+
+def changes_touched_since(root: Path, rev: str, changes_root: str) -> set[str] | None:
+    """Change directories this branch edited, added or deleted since `rev`, including work not yet
+    committed. None when git cannot say."""
+    if changes_root.strip("/") == "":
+        return set()
+    diffed = _git(root, ["diff", "-z", "--name-only", rev, "--", changes_root])
+    untracked = _git(root, ["ls-files", "-z", "--others", "--exclude-standard", "--", changes_root])
+    if diffed is None or untracked is None:
+        return None
+    out: set[str] = set()
+    for p in (diffed + untracked).split("\0"):
+        change = change_of(p, changes_root) if p != "" else None
+        if change is not None:
+            out.add(change)
+    return out
+
+
 @dataclass(frozen=True)
 class Revisions:
     base: str
@@ -781,6 +818,214 @@ def colliding_since(base: IdsByScope, trunk_tip: IdsByScope, current: IdsByScope
 
 
 # =============================================================================================
+# planned.py -- identifiers an open change already holds
+# =============================================================================================
+#
+# A change directory under changesRoot is a plan: its delta, tasks and plan name the numbers it
+# will register when it lands. The check's coverage scan skips changesRoot (a plan is not a test),
+# but allocation must not: a number an open change holds is taken, even though no register shows
+# it yet. Otherwise a patch registers that number, sdd check stays green, and whichever of the two
+# lands second has to renumber its tests, tasks and plan.
+
+ChangesByPlannedId = Mapping[str, frozenset[str]]
+
+
+def change_of(path: str, changes_root: str) -> str | None:
+    """The change directory (`<changesRoot>/<name>`) a path sits in, or None outside one."""
+    root = changes_root.strip("/")
+    if root == "":
+        return None
+    prefix = root + "/"
+    if not path.startswith(prefix):
+        return None
+    rest = path[len(prefix) :]
+    if "/" not in rest:
+        return None
+    return prefix + rest.split("/", 1)[0]
+
+
+def planned_ids(
+    config: SddConfig, files: Iterable[str], read_file: RevisionReader
+) -> dict[str, frozenset[str]]:
+    """Every identifier any planning artifact under changesRoot names, mapped to the changes that
+    name it. Deliberately broad -- a MODIFIED entry or a passing mention counts too -- because this
+    feeds allocation, where over-counting costs a skipped number and under-counting costs a reuse."""
+    pattern = reference_pattern(list(dict.fromkeys(r.scope for r in config.registers)), config.idGrammar)
+    out: dict[str, set[str]] = {}
+    if pattern is None:
+        return {}
+    for f in files:
+        change = change_of(f, config.changesRoot)
+        if change is None:
+            continue
+        text = read_file(f)
+        if text is None:
+            continue
+        for match in pattern.finditer(text):
+            out.setdefault(match.group(0), set()).add(change)
+    return {k: frozenset(v) for k, v in out.items()}
+
+
+def _visible_lines(source: str) -> Iterable[tuple[int, str]]:
+    """Lines outside fenced code and HTML comments, numbered from 1 -- an example in a fence or a
+    template's guidance comment is not a declaration."""
+    fence: str | None = None
+    in_comment = False
+    for index, raw in enumerate(source.split("\n")):
+        if fence is not None:
+            closing = _FENCE.match(raw)
+            run = closing.group(1) if closing else None
+            if run and run[0] == fence[0] and len(run) >= len(fence):
+                fence = None
+            continue
+        line = ""
+        rest = raw
+        while True:
+            if in_comment:
+                close = rest.find("-->")
+                if close == -1:
+                    break
+                rest = rest[close + 3 :]
+                in_comment = False
+                continue
+            open_ = rest.find("<!--")
+            if open_ == -1:
+                line += rest
+                break
+            line += rest[:open_]
+            rest = rest[open_ + 4 :]
+            in_comment = True
+        fence_match = _FENCE.match(line)
+        if fence_match:
+            fence = fence_match.group(1)
+            continue
+        yield index + 1, line
+
+
+def delta_added(source: str, grammar: IdGrammar) -> list[str]:
+    """The identifiers a delta spec declares as NEW: requirement and user-story headings under an
+    `## ADDED …` section. MODIFIED and REMOVED entries legitimately name ids that already exist, so
+    they are never read here."""
+    added: list[str] = []
+    in_added = False
+    for _, line in _visible_lines(source):
+        h2 = _H2.match(line)
+        if h2:
+            in_added = h2.group(1).strip().lower().startswith("added")
+            continue
+        if not in_added:
+            continue
+        heading = _REQUIREMENT.match(line) or _STORY.match(line)
+        if heading is None:
+            continue
+        parts = heading.group(1).strip().split(None, 1)
+        token = parts[0] if parts else ""
+        if is_id(token, grammar):
+            added.append(token)
+    return added
+
+
+def added_by_change(config: SddConfig, files: Iterable[str], read_file: RevisionReader) -> dict[str, frozenset[str]]:
+    """Every identifier an open change's delta `spec.md` ADDs, mapped to the changes adding it."""
+    out: dict[str, set[str]] = {}
+    for f in files:
+        change = change_of(f, config.changesRoot)
+        if change is None or f.rsplit("/", 1)[-1] != "spec.md":
+            continue
+        text = read_file(f)
+        if text is None:
+            continue
+        for id_ in delta_added(text, config.idGrammar):
+            out.setdefault(id_, set()).add(change)
+    return {k: frozenset(v) for k, v in out.items()}
+
+
+def merge_planned(*maps: ChangesByPlannedId) -> dict[str, frozenset[str]]:
+    out: dict[str, set[str]] = {}
+    for m in maps:
+        for id_, changes in m.items():
+            out.setdefault(id_, set()).update(changes)
+    return {k: frozenset(v) for k, v in out.items()}
+
+
+def planned_collisions(
+    base: IdsByScope,
+    trunk_tip: IdsByScope,
+    current: IdsByScope,
+    planned_before: ChangesByPlannedId,
+    planned_now: ChangesByPlannedId,
+    touched: Iterable[str],
+    mentioned: ChangesByPlannedId,
+) -> list[str]:
+    """Identifiers that a register and an open change's ADDED section each claim for different
+    things. Text is no guide -- a change's rows are routinely reworded when they are synced into a
+    table register -- so provenance decides, from what this branch did since the merge base:
+
+    - this branch registers an id an open change already ADDs (at the base or the trunk tip) and
+      touches no change directory that names it. A branch that implements or archives a change
+      edits or deletes its directory -- or a narrower change's that carries out part of it -- and
+      that directory names the id; a branch that touches none of them is allocating over it.
+    - this branch makes a change ADD an id a register already held (at the base or the trunk tip)
+      that the change did not ADD before. A new requirement takes a new number; an existing one is
+      MODIFIED, never ADDED.
+
+    `planned_before` merges the base and trunk-tip deltas; `planned_now` is the working tree's;
+    `mentioned` is every id the touched changes' artifacts name, anywhere in them."""
+    touched_set = set(touched)
+    registered_before: set[str] = set()
+    for ids in (*base.values(), *trunk_tip.values()):
+        registered_before.update(ids)
+
+    out: set[str] = set()
+    for scope, ids in current.items():
+        at_base = base.get(scope, frozenset())
+        for id_ in ids:
+            if id_ in at_base:
+                continue
+            if touched_set & mentioned.get(id_, frozenset()):
+                continue
+            for change in planned_before.get(id_, frozenset()):
+                if change not in touched_set:
+                    out.add(f"{id_} — registered on this branch, but {change} already plans it as new")
+    for id_, changes in planned_now.items():
+        if id_ not in registered_before:
+            continue
+        for change in changes:
+            if change in touched_set and change not in planned_before.get(id_, frozenset()):
+                out.add(f"{id_} — {change} plans it as new on this branch, but a register already holds it")
+    return sorted(out)
+
+
+def allocate(
+    config: SddConfig, scope: str, kind: EntryKind, read_file: RevisionReader, change_files: Iterable[str]
+) -> tuple[str, str | None]:
+    """The next identifier for a scope: one past every number its register has ever issued -- live,
+    proposed or retired -- and every number an open change already names. Returns the id and, when
+    an open change is what pushed it past the register, a note naming that change."""
+    reg = next((r for r in config.registers if r.scope == scope), None)
+    if reg is None:
+        raise ConfigError(f"no register declares scope {scope}")
+    if format_id(scope, kind, 1, config.idGrammar) is None:
+        raise ConfigError(f"a {kind} is not representable under the {config.idGrammar} grammar")
+    source = read_file(reg.file)
+    if source is None:
+        raise ConfigError(f"register {scope} declares {reg.file}, which does not exist")
+    registered = [e.id for e in parse_register(source, reg, config.idGrammar).entries if scope_of(e.id) == scope]
+    planned = {id_: c for id_, c in planned_ids(config, change_files, read_file).items() if scope_of(id_) == scope}
+
+    from_register = next_number(registered, kind, config.idGrammar)
+    n = next_number([*registered, *planned.keys()], kind, config.idGrammar)
+    new_id = format_id(scope, kind, n, config.idGrammar)
+    assert new_id is not None
+    note = None
+    if n > from_register:
+        highest = format_id(scope, kind, n - 1, config.idGrammar)
+        holders = ", ".join(sorted(planned.get(highest or "", frozenset())))
+        note = f"past {highest}, already planned by {holders}" if holders else f"past {highest}, already planned"
+    return new_id, note
+
+
+# =============================================================================================
 # check.py
 # =============================================================================================
 
@@ -835,6 +1080,11 @@ class CheckDeps:
 
     def list_files(self) -> Sequence[str]:  # pragma: no cover - interface
         raise NotImplementedError
+
+    def list_change_files(self) -> Sequence[str]:
+        """Files under changesRoot. Separate from list_files because searchRoots, which bounds
+        that list, need not reach changesRoot -- and a plan is read here whether or not it is."""
+        return self.list_files()
 
 
 def check(config: SddConfig, deps: CheckDeps) -> CheckReport:
@@ -1043,6 +1293,18 @@ def check(config: SddConfig, deps: CheckDeps) -> CheckReport:
         dangling.append(f"{id_} — named by {', '.join(sorted(files)[:3])}")
     if len(dangling) > 0:
         add("unknown-id", "something names an identifier no register declares", sorted(dangling))
+
+    twice = [
+        f"{id_} — {', '.join(sorted(changes))}"
+        for id_, changes in added_by_change(config, deps.list_change_files(), deps.read_file).items()
+        if len(changes) > 1
+    ]
+    if len(twice) > 0:
+        add(
+            "planned-id-twice",
+            "two open changes each plan the same new identifier — whichever lands second must renumber its tests, tasks and plan",
+            sorted(twice),
+        )
 
     if pattern is None and len(config.registers) > 0:
         add("no-scopes", "registers are declared but no scope could be read from them", [])
@@ -1292,6 +1554,9 @@ USAGE = """Usage: sdd <command>
   check [--json]   Verify every register: identifiers well formed, live ones named by
                    something outside the registers, ratchets alive, nothing dropped since
                    the trunk, and no vendored skill hand-edited.
+  next <SCOPE> [--story]
+                   Print the next free identifier for a scope: past every number its
+                   register has issued and every number an open change already plans.
   install          Vendor the kit's skills (and, this file, this core module, and the
                    templates) into this repo. Overwrites wholesale -- a vendored file is
                    generated, never hand-edited; customise the config.
@@ -1299,9 +1564,10 @@ USAGE = """Usage: sdd <command>
 
 
 class _RealDeps(CheckDeps):
-    def __init__(self, read_file: RevisionReader, files: Sequence[str]) -> None:
+    def __init__(self, read_file: RevisionReader, files: Sequence[str], change_files: Sequence[str]) -> None:
         self._read_file = read_file
         self._files = files
+        self._change_files = change_files
 
     def read_file(self, path: str) -> str | None:
         return self._read_file(path)
@@ -1309,13 +1575,16 @@ class _RealDeps(CheckDeps):
     def list_files(self) -> Sequence[str]:
         return self._files
 
+    def list_change_files(self) -> Sequence[str]:
+        return self._change_files
+
 
 def main(argv: Sequence[str]) -> int:
     command = argv[0] if len(argv) > 0 else None
     if command is None or command in ("--help", "-h"):
         sys.stdout.write(USAGE)
         return 1 if command is None else 0
-    if command not in ("check", "install"):
+    if command not in ("check", "install", "next"):
         sys.stderr.write(f'sdd: unknown command "{command}"\n\n{USAGE}')
         return 2
 
@@ -1367,7 +1636,25 @@ def main(argv: Sequence[str]) -> int:
         return 2
 
     read_file = make_reader(root)
-    report = check(config, _RealDeps(read_file, list_tracked_files(root, config.searchRoots)))
+    change_files = list_change_files(root, config.changesRoot)
+
+    if command == "next":
+        positional = [a for a in argv[1:] if not a.startswith("--")]
+        if len(positional) != 1:
+            sys.stderr.write(f"sdd: next takes exactly one scope\n\n{USAGE}")
+            return 2
+        kind: EntryKind = "story" if "--story" in argv else "requirement"
+        try:
+            new_id, note = allocate(config, positional[0], kind, read_file, change_files)
+        except ConfigError as err:
+            sys.stderr.write(f"sdd: {err}\n")
+            return 2
+        sys.stdout.write(new_id + "\n")
+        if note is not None:
+            sys.stderr.write(f"sdd: {note}\n")
+        return 0
+
+    report = check(config, _RealDeps(read_file, list_tracked_files(root, config.searchRoots), change_files))
 
     findings = list(report.findings)
 
@@ -1419,6 +1706,44 @@ def main(argv: Sequence[str]) -> int:
                         detail=dropped.droppedIds,
                     )
                 )
+            touched = changes_touched_since(root, revisions.base, config.changesRoot)
+            if touched is not None:
+
+                def planned_at(rev: str) -> dict[str, frozenset[str]]:
+                    return added_by_change(
+                        config, list_files_at(root, rev, config.changesRoot), make_revision_reader(root, rev)
+                    )
+
+                # What the touched changes name: as they are now, plus, for one this branch deleted
+                # (archived), as it was at the base.
+                present = {c for c in (change_of(f, config.changesRoot) for f in change_files) if c is not None}
+                gone = [
+                    f
+                    for f in list_files_at(root, revisions.base, config.changesRoot)
+                    if change_of(f, config.changesRoot) in touched - present
+                ]
+                mentioned = merge_planned(
+                    planned_ids(config, [f for f in change_files if change_of(f, config.changesRoot) in touched], read_file),
+                    planned_ids(config, gone, make_revision_reader(root, revisions.base)),
+                )
+                collisions = planned_collisions(
+                    base,
+                    tip or {},
+                    current,
+                    merge_planned(planned_at(revisions.base), planned_at(revisions.tip)),
+                    added_by_change(config, change_files, read_file),
+                    touched,
+                    mentioned,
+                )
+                if len(collisions) > 0:
+                    findings.append(
+                        Finding(
+                            check="planned-id-collision",
+                            message="an identifier is registered for one thing and planned as new by an open change — "
+                            "whichever lands second must renumber; take the next free one from `sdd next <SCOPE>`",
+                            detail=tuple(collisions),
+                        )
+                    )
             if tip is not None:
                 collisions = colliding_since(base, tip, current)
                 if len(collisions) > 0:

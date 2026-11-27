@@ -51,7 +51,8 @@ It happens, and the honest move is not to quietly diverge:
   artifacts are meant to be revised while the work is in flight; a spec that gets silently overtaken
   by its own implementation is worse than none.
 - **The work needs a requirement nobody wrote** → add it to the delta under `## ADDED`, allocate its
-  id by reading, and give it a `> Story:` line. Do not smuggle behaviour in with no promise attached.
+  id with `sdd next <SCOPE>` (never by counting — open changes' planned numbers are taken too), and
+  give it a `> Story:` line. Do not smuggle behaviour in with no promise attached.
 - **The change turns out to be much larger** → say so before building it, not after.
 
 ## What this skill will not do

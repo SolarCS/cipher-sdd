@@ -36,6 +36,7 @@ From then on, everything runs from the consumer's own copy, with zero access to 
 ```bash
 ./sdd.py check          # or: python3 sdd.py check
 ./sdd.py check --json
+./sdd.py next AGT       # the next free identifier for a scope (--story for a story)
 ```
 
 (If `coreDir` is set to something other than the default `"."` — see [Configuration](#configuration)
@@ -107,6 +108,15 @@ enforce is that nothing *mutable* — severity, priority, status — goes in one
 
 Repos with an installed base run `idGrammar = "catalyst"`, which is the plain `SCOPE-n` form. Stories
 are not representable under it, and the checker will not invent a spelling for one.
+
+**A number an open change plans is taken.** A change under `changesRoot` names the numbers it will
+register in its delta, tasks and plan long before any register shows them. `sdd next <SCOPE>`
+allocates past every number the register has issued *and* every number an open change names, and
+`sdd check` fails two ways of handing one number out twice: `planned-id-twice` when two open changes
+ADD the same id, and `planned-id-collision` when a branch registers an id an open change already
+ADDs without touching any change directory that names it — or makes a change ADD an id a register
+already holds. Text is not compared: a change's own rows are routinely reworded when synced into a
+table register, so provenance (what the branch did since the merge base) decides instead.
 
 The checker proves an id is **named** by something outside the registers. It cannot prove the naming
 test asserts anything — `it("… (SRC-R7)", () => {})` passes. That half needs a reader, which is why
