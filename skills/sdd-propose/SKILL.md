@@ -63,8 +63,10 @@ Three rules decide what belongs here rather than in `plan.md`:
   measurable *and* technology-agnostic: "users see results instantly", never "the endpoint responds
   in under 200 ms".
 
-Allocate ids by **reading** the living spec, never by counting headings — a retired entry still holds
-its number. New requirements go under `## ADDED`, and reach the living spec's
+Allocate ids with **`sdd next <SCOPE>`** (`--story` for a story), never by counting headings — a
+retired entry still holds its number, and so does every number another open change under
+`changesRoot` already plans. For several new ids, number upward from the one it prints. It needs
+Python 3.11+, like `sdd check`. New requirements go under `## ADDED`, and reach the living spec's
 `## Proposed Requirements` at sync: declared so tests may name them, not gated until the work lands.
 
 ### 3. Self-grade, up to three times

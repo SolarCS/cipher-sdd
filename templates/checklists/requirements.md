@@ -24,7 +24,8 @@
 
 ## Identifiers
 
-- [ ] Allocated by reading the living spec, not by counting its headings
+- [ ] Allocated with `sdd next <SCOPE>` — past every retired number and every number another open
+      change plans — not by counting the living spec's headings
 - [ ] No existing id renumbered, reused, or changed to match a reworded heading
 - [ ] Anything removed is retired with a dated record, never deleted
 
